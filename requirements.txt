@@ -1,0 +1,11 @@
+PyQt5==5.15.10
+pyserial==3.5
+python-dotenv==1.0.0
+schedule==1.2.0
+requests==2.31.0
+# pyscard - optionnel pour lecteurs PC/SC (ACR1252)
+# Décommenter si vous avez un lecteur PC/SC:
+# pyscard>=2.1.0
+
+
+

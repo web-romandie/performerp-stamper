@@ -1,0 +1,41 @@
+=====================================================
+  PROBLEME "pip n'est pas reconnu" ?
+=====================================================
+
+SOLUTION RAPIDE (Windows):
+--------------------------
+
+Au lieu de:
+    pip install -r requirements.txt
+
+Utilisez:
+    python -m pip install -r requirements.txt
+
+Ou encore plus simple:
+    Double-cliquez sur: install_dependencies.bat
+
+
+AUTRE SOLUTION:
+---------------
+
+Lancez simplement:
+    start.bat
+
+Ce script détecte automatiquement votre configuration
+et installe tout ce qui est nécessaire.
+
+
+BESOIN D'AIDE ?
+---------------
+
+Consultez le guide complet:
+    DEPANNAGE_INSTALLATION.md
+
+Ou lancez le diagnostic:
+    python diagnostic.py
+
+
+=====================================================
+
+
+
