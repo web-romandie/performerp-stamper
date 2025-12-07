@@ -67,3 +67,4 @@ print("  - Si vous avez un ACR1252 ou lecteur USB NFC: main_pcsc_auto.py")
 print("  - Si vous avez un lecteur série classique: main.py")
 print("=" * 60)
 
+

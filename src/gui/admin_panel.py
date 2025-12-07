@@ -583,8 +583,8 @@ class AdminPanel(QMainWindow):
             info = f"Sélectionné: {employee['nom']} {employee['prenom']}"
             
             # Afficher le badge actuel s'il existe
-            if employee.get('has_rfid') and employee.get('carte') and employee['carte'] != '0':
-                info += f"\n✓ Badge RFID actuel: {employee['carte']}"
+            if employee.get('has_rfid') and employee.get('rfid'):
+                info += f"\n✓ Badge RFID actuel: {employee.get('rfid')}"
                 info += "\n(Vous pouvez le remplacer ou le retirer)"
                 # Afficher le bouton pour retirer le badge
                 self.rfid_remove_btn.setVisible(True)
@@ -779,7 +779,11 @@ class AdminPanel(QMainWindow):
             # Vérifier le nombre d'employés
             import json
             data = json.loads(response.text)
-            employee_count = len(data.get('employees', []))
+            # Support pour les deux formats : tableau direct ou objet avec clé 'employees'
+            if isinstance(data, list):
+                employee_count = len(data)
+            else:
+                employee_count = len(data.get('employees', []))
             
             self.rfid_log(f"✓ Fichier employees.json généré avec {employee_count} employé(s)")
             self.rfid_log(f"  Emplacement: {employees_file}")
@@ -826,12 +830,12 @@ class AdminPanel(QMainWindow):
             return
         
         # Vérifier qu'il y a bien un badge
-        if not self.rfid_selected_employee.get('has_rfid') or not self.rfid_selected_employee.get('carte') or self.rfid_selected_employee['carte'] == '0':
+        if not self.rfid_selected_employee.get('has_rfid') or not self.rfid_selected_employee.get('rfid'):
             QMessageBox.warning(self, "Attention", "Cet employé n'a pas de badge RFID configuré")
             return
         
         employee_name = f"{self.rfid_selected_employee['prenom']} {self.rfid_selected_employee['nom']}"
-        rfid_code = self.rfid_selected_employee['carte']
+        rfid_code = self.rfid_selected_employee.get('rfid')
         
         # Demander confirmation
         reply = QMessageBox.question(
@@ -927,6 +931,7 @@ class AdminPanel(QMainWindow):
             logger.error(f"Erreur lors de la fermeture du panneau admin: {e}")
         
         event.accept()
+
 
 
 

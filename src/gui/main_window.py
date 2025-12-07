@@ -376,7 +376,12 @@ class MainWindow(QMainWindow):
         try:
             with open(self.employees_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return {emp['rfid']: emp for emp in data['employees']}
+                # Support pour les deux formats : tableau direct ou objet avec clé 'employees'
+                if isinstance(data, list):
+                    employees = data
+                else:
+                    employees = data.get('employees', [])
+                return {emp['rfid']: emp for emp in employees}
         except Exception as e:
             logger.error(f"Erreur lors du chargement des employés: {e}")
             return {}
@@ -615,17 +620,17 @@ class MainWindow(QMainWindow):
         data = self.dashboard_data
         
         # Reste à faire
-        restant = data['temps_travaille']['heures_restantes_formatted']
-        self.planif_widget.value_label.setText(restant)
+        heures_restantes = data['temps_travaille'].get('heures_restantes', 0)
+        self.planif_widget.value_label.setText(self.format_hours(heures_restantes))
         
         # Temps réalisé
-        realise = data['temps_travaille']['heures_realisees_formatted']
-        self.realise_widget.value_label.setText(realise)
+        heures_realisees = data['temps_travaille'].get('heures_realisees', 0)
+        self.realise_widget.value_label.setText(self.format_hours(heures_realisees))
         
-        # Solde d'heures
-        solde_h = data['soldes']['heures']['valeur']
+        # Solde d'heures (solde_veille)
+        solde_h = data['soldes'].get('solde_veille', 0)
         signe = "+" if solde_h >= 0 else ""
-        self.solde_heures_widget.value_label.setText(f"{signe}{data['soldes']['heures']['formatted']}")
+        self.solde_heures_widget.value_label.setText(f"{signe}{self.format_hours(solde_h)}")
         
         # Mettre la couleur en rouge si négatif
         if solde_h < 0:
@@ -634,8 +639,8 @@ class MainWindow(QMainWindow):
             self.solde_heures_widget.value_label.setStyleSheet("color: #9b59b6; border: none;")
         
         # Solde de vacances
-        solde_v = data['soldes']['vacances']['jours']
-        self.solde_vacances_widget.value_label.setText(f"{solde_v:.2f}")
+        solde_v = data['soldes'].get('solde_vacances', 0)
+        self.solde_vacances_widget.value_label.setText(f"{solde_v:.2f} j")
         
         # Afficher les pointages du jour par paires
         pointages_paires = data['temps_travaille'].get('pointages_paires', [])
@@ -644,12 +649,22 @@ class MainWindow(QMainWindow):
             for i, paire in enumerate(pointages_paires, 1):
                 entree = paire['entree']
                 sortie = paire['sortie'] if paire['sortie'] else "..."
-                duree = paire['duree_formatted']
-                pointages_text += f"{i}. {entree} → {sortie}  ({duree})\n"
+                duree = paire.get('duree', 0)
+                pointages_text += f"{i}. {entree} → {sortie}  ({self.format_hours(duree)})\n"
             self.pointages_label.setText(pointages_text.strip())
             self.pointages_label.setVisible(True)
         else:
             self.pointages_label.setVisible(False)
+    
+    def format_hours(self, hours):
+        """Formate les heures décimales en HH:MM:SS"""
+        if hours is None:
+            hours = 0
+        total_seconds = int(hours * 3600)
+        h = total_seconds // 3600
+        m = (total_seconds % 3600) // 60
+        s = total_seconds % 60
+        return f"{h:02d}:{m:02d}:{s:02d}"
         
     def check_card_presence(self):
         """Vérifie si la carte est toujours présente"""
@@ -784,4 +799,5 @@ class MainWindow(QMainWindow):
             self.data_fetch_timer.stop()
             
         event.accept()
+
 

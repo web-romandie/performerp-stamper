@@ -75,3 +75,4 @@ except KeyboardInterrupt:
     print("\n\n✓ Test terminé")
     cardmonitor.deleteObserver(cardobserver)
 
+

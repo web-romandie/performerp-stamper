@@ -144,7 +144,11 @@ def check_config():
         else:
             with open(settings.EMPLOYEES_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                num_employees = len(data.get('employees', []))
+                # Support pour les deux formats : tableau direct ou objet avec clé 'employees'
+                if isinstance(data, list):
+                    num_employees = len(data)
+                else:
+                    num_employees = len(data.get('employees', []))
                 print(f"✓ Fichier employés: {num_employees} employé(s) configuré(s)")
         
         # Vérifier config FTP
@@ -245,6 +249,7 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
 
 
 

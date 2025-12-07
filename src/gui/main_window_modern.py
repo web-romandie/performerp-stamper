@@ -337,7 +337,12 @@ class ModernMainWindow(QMainWindow):
         try:
             with open(self.employees_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return {emp['rfid']: emp for emp in data['employees']}
+                # Support pour les deux formats : tableau direct ou objet avec clé 'employees'
+                if isinstance(data, list):
+                    employees = data
+                else:
+                    employees = data.get('employees', [])
+                return {emp['rfid']: emp for emp in employees}
         except Exception as e:
             logger.error(f"Erreur lors du chargement des employés: {e}")
             return {}

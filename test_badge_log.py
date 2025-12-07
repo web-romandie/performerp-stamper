@@ -89,3 +89,4 @@ except KeyboardInterrupt:
     log("✓ Test terminé")
     cardmonitor.deleteObserver(cardobserver)
 
+

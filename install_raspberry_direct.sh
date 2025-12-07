@@ -46,3 +46,4 @@ echo "activer les permissions du port série."
 echo ""
 
 
+

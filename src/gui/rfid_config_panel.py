@@ -238,8 +238,8 @@ class RFIDConfigPanel(QWidget):
         if employee:
             self.selected_employee = employee
             info = f"Sélectionné: {employee['nom']} {employee['prenom']}"
-            if employee.get('has_rfid'):
-                info += f"\n⚠️ Badge RFID déjà configuré: {employee['carte']}"
+            if employee.get('has_rfid') and employee.get('rfid'):
+                info += f"\n⚠️ Badge RFID déjà configuré: {employee.get('rfid')}"
                 info += "\n(Sera remplacé si vous scannez un nouveau badge)"
             self.employee_info.setText(info)
             self.employee_info.setStyleSheet("color: black;")
