@@ -428,7 +428,7 @@ class MainWindow(QMainWindow):
         
         # Enregistrer le pointage
         id_emp = int(employee['employee_id'].replace('EMP', '').lstrip('0'))
-        success = self.save_pointage(id_emp)
+        success, error_msg = self.save_pointage(id_emp)
         
         if success:
             # Afficher "Timbrage enregistré"
@@ -442,13 +442,13 @@ class MainWindow(QMainWindow):
             self.delayed_fetch_timer.timeout.connect(lambda: self.fetch_employee_dashboard(id_emp))
             self.delayed_fetch_timer.start(2000)
         else:
-            self.show_status_message("❌ Erreur d'enregistrement", success=False)
+            self.show_status_message(f"❌ Erreur d'enregistrement\n{error_msg}", success=False)
         
         # Réinitialiser le flag après un court délai
         QTimer.singleShot(3000, lambda: setattr(self, 'is_processing', False))
     
     def save_pointage(self, id_emp):
-        """Enregistre un pointage via l'API ET en local (retourne True si succès)"""
+        """Enregistre un pointage via l'API ET en local (retourne (True, None) si succès ou (False, message_erreur))"""
         try:
             now = datetime.now()
             date_str = now.strftime("%Y-%m-%d")
@@ -498,14 +498,24 @@ class MainWindow(QMainWindow):
                     logger.error(f"Erreur lors de l'enregistrement SQLite: {e}")
                     # Ne pas bloquer si l'enregistrement local échoue
                 
-                return True
+                return True, None
             else:
-                logger.error(f"Erreur API pointage: {result.get('error', 'Erreur inconnue')}")
-                return False
+                error = result.get('error', 'Erreur inconnue')
+                logger.error(f"Erreur API pointage: {error}")
+                return False, f"API: {error}"
             
+        except requests.exceptions.Timeout:
+            error = "Délai d'attente dépassé (serveur trop lent)"
+            logger.error(f"Timeout lors de l'enregistrement du pointage: {error}")
+            return False, error
+        except requests.exceptions.ConnectionError:
+            error = "Impossible de se connecter au serveur"
+            logger.error(f"Erreur de connexion: {error}")
+            return False, error
         except Exception as e:
-            logger.error(f"Erreur lors de l'enregistrement du pointage: {e}")
-            return False
+            error = str(e)
+            logger.error(f"Erreur lors de l'enregistrement du pointage: {error}")
+            return False, f"Erreur système: {error}"
     
     def show_employee_info(self, employee):
         """Affiche les informations de base de l'employé"""
@@ -536,7 +546,16 @@ class MainWindow(QMainWindow):
         else:
             color = "#3498db"  # Bleu pour info/en cours
         
-        self.instruction_label.setText(message)
+        # Si le message contient un saut de ligne, formater avec la première ligne en gros et le reste en petit
+        if '\n' in message:
+            lines = message.split('\n', 1)
+            formatted_message = f'<div style="font-size: 24px; font-weight: bold;">{lines[0]}</div>'
+            if len(lines) > 1 and lines[1].strip():
+                formatted_message += f'<div style="font-size: 14px; margin-top: 10px; opacity: 0.9;">{lines[1]}</div>'
+            self.instruction_label.setText(formatted_message)
+        else:
+            self.instruction_label.setText(message)
+        
         self.instruction_label.setStyleSheet(f"""
             color: white;
             background-color: {color};
