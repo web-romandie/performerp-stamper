@@ -12,7 +12,15 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QPushButton, QFrame, QGridLayout, QApplication, QLineEdit)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QPropertyAnimation, QEasingCurve, QSize
 from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap, QIcon
-from PyQt5.QtSvg import QSvgWidget
+
+# Import optionnel pour le support SVG
+try:
+    from PyQt5.QtSvg import QSvgWidget
+    SVG_AVAILABLE = True
+except ImportError:
+    SVG_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("PyQt5.QtSvg non disponible - support SVG désactivé")
 
 import requests
 import urllib3
@@ -146,8 +154,8 @@ class MainWindow(QMainWindow):
         logo_path_svg = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.svg'
         logo_path_png = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.png'
         
-        # Priorité au SVG, sinon PNG, sinon fallback texte
-        if logo_path_svg.exists():
+        # Priorité au SVG (si disponible), sinon PNG, sinon fallback texte
+        if SVG_AVAILABLE and logo_path_svg.exists():
             # Charger le logo SVG
             svg_widget = QSvgWidget(str(logo_path_svg))
             # Définir seulement la hauteur, la largeur s'adaptera automatiquement au ratio d'aspect
