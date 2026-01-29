@@ -417,25 +417,28 @@ class AdminPanel(QMainWindow):
         self.rfid_buffer = ''
         self.rfid_timeout = None
         
+        # LIGNE 1: Connexion à l'API + Sélection de l'employé (côte à côte pour gagner de la place)
+        top_row = QHBoxLayout()
+        top_row.setSpacing(10)
+        
         # Section 1: Connexion à l'API
         api_group = QGroupBox("Connexion au serveur")
         api_layout = QVBoxLayout()
         
         # Afficher les informations de connexion (lecture seule)
-        info_label = QLabel(f"URL de l'API: <b>{self.api_url}</b><br>ID du compte: <b>{self.id_compte}</b>")
-        info_label.setStyleSheet("color: #666; padding: 5px;")
+        info_label = QLabel(f"URL: <b>{self.api_url}</b><br>Compte: <b>{self.id_compte}</b>")
+        info_label.setStyleSheet("color: #666; padding: 5px; font-size: 11px;")
+        info_label.setWordWrap(True)
         api_layout.addWidget(info_label)
         
         # Bouton pour charger les employés
-        load_layout = QHBoxLayout()
         self.rfid_load_btn = QPushButton("Charger les employés")
+        self.rfid_load_btn.setMinimumHeight(40)
         self.rfid_load_btn.clicked.connect(self.load_rfid_employees)
-        load_layout.addWidget(self.rfid_load_btn)
-        load_layout.addStretch()
-        api_layout.addLayout(load_layout)
+        api_layout.addWidget(self.rfid_load_btn)
         
         api_group.setLayout(api_layout)
-        layout.addWidget(api_group)
+        top_row.addWidget(api_group)
         
         # Section 2: Sélection de l'employé
         employee_group = QGroupBox("Sélection de l'employé")
@@ -443,24 +446,27 @@ class AdminPanel(QMainWindow):
         
         self.rfid_employee_combo = QComboBox()
         self.rfid_employee_combo.setEnabled(False)
+        self.rfid_employee_combo.setMinimumHeight(40)
         self.rfid_employee_combo.currentIndexChanged.connect(self.on_rfid_employee_selected)
-        employee_layout.addWidget(QLabel("Employé:"))
         employee_layout.addWidget(self.rfid_employee_combo)
         
         self.rfid_employee_info = QLabel("Aucun employé sélectionné")
-        self.rfid_employee_info.setStyleSheet("color: gray; font-style: italic;")
+        self.rfid_employee_info.setStyleSheet("color: gray; font-style: italic; font-size: 11px;")
+        self.rfid_employee_info.setWordWrap(True)
         employee_layout.addWidget(self.rfid_employee_info)
         
         # Bouton pour retirer le badge (visible seulement si badge existant)
-        self.rfid_remove_btn = QPushButton("🗑️ Retirer le badge RFID")
+        self.rfid_remove_btn = QPushButton("🗑️ Retirer le badge")
         self.rfid_remove_btn.setStyleSheet("background-color: #e74c3c; color: white; font-weight: bold;")
-        self.rfid_remove_btn.setMinimumHeight(40)
+        self.rfid_remove_btn.setMinimumHeight(35)
         self.rfid_remove_btn.clicked.connect(self.remove_rfid_badge)
         self.rfid_remove_btn.setVisible(False)  # Caché par défaut
         employee_layout.addWidget(self.rfid_remove_btn)
         
         employee_group.setLayout(employee_layout)
-        layout.addWidget(employee_group)
+        top_row.addWidget(employee_group)
+        
+        layout.addLayout(top_row)
         
         # Section 3: Scan du badge
         scan_group = QGroupBox("Configuration du badge RFID")
@@ -468,6 +474,7 @@ class AdminPanel(QMainWindow):
         
         # Status du lecteur
         self.rfid_reader_status = QLabel("Lecteur RFID: Vérification...")
+        self.rfid_reader_status.setStyleSheet("font-size: 12px; font-weight: bold;")
         scan_layout.addWidget(self.rfid_reader_status)
         self.check_rfid_reader_status()
         
@@ -476,16 +483,16 @@ class AdminPanel(QMainWindow):
         
         self.rfid_scan_btn = QPushButton("Scannez le badge maintenant")
         self.rfid_scan_btn.setEnabled(False)
-        self.rfid_scan_btn.setMinimumHeight(60)
-        self.rfid_scan_btn.setFont(QFont("Arial", 14))
+        self.rfid_scan_btn.setMinimumHeight(50)
+        self.rfid_scan_btn.setFont(QFont("Arial", 12, QFont.Bold))
         self.rfid_scan_btn.clicked.connect(self.start_rfid_scanning)
         scan_btn_layout.addWidget(self.rfid_scan_btn)
         
         self.rfid_cancel_btn = QPushButton("Annuler")
         self.rfid_cancel_btn.setEnabled(False)
-        self.rfid_cancel_btn.setMinimumHeight(60)
-        self.rfid_cancel_btn.setFont(QFont("Arial", 12))
-        self.rfid_cancel_btn.setMaximumWidth(150)
+        self.rfid_cancel_btn.setMinimumHeight(50)
+        self.rfid_cancel_btn.setFont(QFont("Arial", 11))
+        self.rfid_cancel_btn.setMaximumWidth(120)
         self.rfid_cancel_btn.clicked.connect(self.cancel_rfid_scanning)
         scan_btn_layout.addWidget(self.rfid_cancel_btn)
         
@@ -497,14 +504,15 @@ class AdminPanel(QMainWindow):
         self.rfid_display = QLineEdit()
         self.rfid_display.setReadOnly(True)
         self.rfid_display.setPlaceholderText("En attente du scan...")
+        self.rfid_display.setMinimumHeight(35)
         rfid_layout.addWidget(self.rfid_display)
         scan_layout.addLayout(rfid_layout)
         
         # Bouton pour enregistrer
         self.rfid_save_btn = QPushButton("Enregistrer l'association")
         self.rfid_save_btn.setEnabled(False)
-        self.rfid_save_btn.setMinimumHeight(50)
-        self.rfid_save_btn.setFont(QFont("Arial", 12))
+        self.rfid_save_btn.setMinimumHeight(45)
+        self.rfid_save_btn.setFont(QFont("Arial", 11, QFont.Bold))
         self.rfid_save_btn.clicked.connect(self.save_rfid_association)
         scan_layout.addWidget(self.rfid_save_btn)
         
@@ -517,14 +525,15 @@ class AdminPanel(QMainWindow):
         
         self.rfid_log_display = QTextEdit()
         self.rfid_log_display.setReadOnly(True)
-        self.rfid_log_display.setMaximumHeight(150)
+        self.rfid_log_display.setMaximumHeight(120)
+        self.rfid_log_display.setStyleSheet("font-size: 11px;")
         log_layout.addWidget(self.rfid_log_display)
         
         # Bouton pour regénérer manuellement le fichier
         regen_btn_layout = QHBoxLayout()
         regen_btn_layout.addStretch()
         self.rfid_regen_btn = QPushButton("🔄 Regénérer employees.json")
-        self.rfid_regen_btn.setMinimumHeight(35)
+        self.rfid_regen_btn.setMinimumHeight(30)
         self.rfid_regen_btn.setStyleSheet("background-color: #3498db; color: white;")
         self.rfid_regen_btn.clicked.connect(self.manual_generate_employees_json)
         regen_btn_layout.addWidget(self.rfid_regen_btn)
@@ -657,8 +666,8 @@ class AdminPanel(QMainWindow):
             
             self.rfid_log(f"✓ Badge scanné: {rfid_code}")
             
-            # Arrêter notre lecture et redémarrer la lecture principale
-            self.stop_rfid_config_mode()
+            # Arrêter notre lecture et redémarrer la lecture principale (de manière asynchrone pour éviter le join du thread actuel)
+            QTimer.singleShot(100, self.stop_rfid_config_mode)
             
             # Réactiver le bouton après 2 secondes
             QTimer.singleShot(2000, self.reset_rfid_scan_button)
