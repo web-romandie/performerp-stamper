@@ -11,7 +11,7 @@ from pathlib import Path
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QFrame, QGridLayout, QApplication, QLineEdit)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QFont, QColor, QPalette
+from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap
 
 import requests
 import urllib3
@@ -141,11 +141,24 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(header)
         layout.setContentsMargins(30, 0, 30, 0)
         
-        # Logo/Titre
-        title_label = QLabel("Pointage")
-        title_label.setFont(QFont("Arial", 24, QFont.Bold))
-        title_label.setStyleSheet("color: white;")
-        layout.addWidget(title_label)
+        # Logo
+        logo_label = QLabel()
+        logo_path = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.png'
+        
+        if logo_path.exists():
+            # Charger et afficher le logo
+            pixmap = QPixmap(str(logo_path))
+            # Redimensionner le logo pour qu'il tienne dans la hauteur du header (60px de hauteur max)
+            scaled_pixmap = pixmap.scaledToHeight(60, Qt.SmoothTransformation)
+            logo_label.setPixmap(scaled_pixmap)
+        else:
+            # Fallback: afficher le texte si le logo n'existe pas
+            logo_label.setText("Pointage")
+            logo_label.setFont(QFont("Arial", 24, QFont.Bold))
+            logo_label.setStyleSheet("color: white;")
+            logger.warning(f"Logo non trouvé: {logo_path}")
+        
+        layout.addWidget(logo_label)
         
         layout.addStretch()
         

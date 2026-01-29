@@ -1,0 +1,6 @@
+# Images et logos
+*.png
+*.jpg
+*.jpeg
+!.gitkeep
+!README.md

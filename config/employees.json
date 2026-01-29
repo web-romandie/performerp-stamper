@@ -1,40 +1,9 @@
-{
-    "employees": [
-        {
-            "rfid": "4",
-            "name": "Basile Darwish",
-            "employee_id": "EMP000989",
-            "rang": 2
-        },
-        {
-            "rfid": "1",
-            "name": "Marius Gasser",
-            "employee_id": "EMP000086",
-            "rang": 2
-        },
-        {
-            "rfid": "6",
-            "name": "Julia Gullung",
-            "employee_id": "EMP002698",
-            "rang": 2
-        },
-        {
-            "rfid": "043A286A8F3480",
-            "name": "Antoine Martinelli",
-            "employee_id": "EMP003050",
-            "rang": 1
-        },
-        {
-            "rfid": "2",
-            "name": "Salomé Mettraux",
-            "employee_id": "EMP000332",
-            "rang": 2
-        },
-        {
-            "rfid": "7",
-            "name": "Zeina Raimondo",
-            "employee_id": "EMP003031",
-            "rang": 2
-        }
-    ]
-}
+
+[
+    {
+        "rfid": "043A286A8F3480",
+        "name": "Antoine Martinelli",
+        "employee_id": "EMP003050",
+        "rang": 2
+    }
+]
