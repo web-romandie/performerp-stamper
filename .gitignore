@@ -48,5 +48,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 .cache/
+
+# Employee data (contains RFID codes - regenerated from API)
 config/employees.json
-config/settings.py

@@ -48,10 +48,12 @@ WINDOW_TITLE = f"Système de Pointage - {COMPANY_NAME}"
 WINDOW_WIDTH = 1024
 WINDOW_HEIGHT = 600
 FULLSCREEN = os.getenv("FULLSCREEN", "False").lower() == "true"
+SIMPLE_MODE = os.getenv("SIMPLE_MODE", "False").lower() == "true"
 
 # Logs
 LOG_FILE = LOGS_DIR / "pointage.log"
 LOG_LEVEL = "DEBUG" if DEBUG_MODE else "INFO"
+
 
 
 

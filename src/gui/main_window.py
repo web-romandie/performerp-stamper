@@ -248,22 +248,6 @@ class MainWindow(QMainWindow):
         )
         info_grid.addWidget(self.realise_widget, 0, 1)
         
-        # Solde d'heures
-        self.solde_heures_widget = self.create_info_card(
-            "Solde de travail",
-            "+0h00",
-            "#9b59b6"
-        )
-        info_grid.addWidget(self.solde_heures_widget, 1, 0)
-        
-        # Solde de vacances
-        self.solde_vacances_widget = self.create_info_card(
-            "Solde de vacances",
-            "0.00",
-            "#e67e22"
-        )
-        info_grid.addWidget(self.solde_vacances_widget, 1, 1)
-        
         layout.addLayout(info_grid)
         
         # Message de chargement
@@ -626,21 +610,6 @@ class MainWindow(QMainWindow):
         # Temps réalisé
         heures_realisees = data['temps_travaille'].get('heures_realisees', 0)
         self.realise_widget.value_label.setText(self.format_hours(heures_realisees))
-        
-        # Solde d'heures (solde_veille)
-        solde_h = data['soldes'].get('solde_veille', 0)
-        signe = "+" if solde_h >= 0 else ""
-        self.solde_heures_widget.value_label.setText(f"{signe}{self.format_hours(solde_h)}")
-        
-        # Mettre la couleur en rouge si négatif
-        if solde_h < 0:
-            self.solde_heures_widget.value_label.setStyleSheet("color: #e74c3c; border: none;")
-        else:
-            self.solde_heures_widget.value_label.setStyleSheet("color: #9b59b6; border: none;")
-        
-        # Solde de vacances
-        solde_v = data['soldes'].get('solde_vacances', 0)
-        self.solde_vacances_widget.value_label.setText(f"{solde_v:.2f} j")
         
         # Afficher les pointages du jour par paires
         pointages_paires = data['temps_travaille'].get('pointages_paires', [])
