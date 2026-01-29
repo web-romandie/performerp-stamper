@@ -403,6 +403,9 @@ class MainWindow(QMainWindow):
         
         self.is_processing = True
         
+        # IMPORTANT: Effacer immédiatement les données de la personne précédente (confidentialité)
+        self.clear_employee_data()
+        
         # Rechercher l'employé
         employee = self.employees.get(rfid_code)
         
@@ -658,6 +661,36 @@ class MainWindow(QMainWindow):
                     self.hide_employee_info()
         except Exception as e:
             logger.error(f"Erreur lors de la vérification de présence de carte: {e}")
+    
+    def clear_employee_data(self):
+        """Efface immédiatement toutes les données affichées (pour confidentialité)"""
+        # Effacer le nom de l'employé
+        self.employee_name_label.setText("")
+        
+        # Masquer/réinitialiser la colonne de droite
+        self.right_column.setVisible(False)
+        
+        # Effacer les données du dashboard
+        self.dashboard_data = None
+        
+        # Masquer les pointages
+        self.pointages_label.setVisible(False)
+        self.pointages_label.setText("")
+        
+        # Masquer le bouton Administration
+        self.admin_btn.setVisible(False)
+        
+        # Réinitialiser les cartes d'information si elles existent
+        if hasattr(self, 'planif_widget') and hasattr(self.planif_widget, 'value_label'):
+            self.planif_widget.value_label.setText("--:--:--")
+        if hasattr(self, 'realise_widget') and hasattr(self.realise_widget, 'value_label'):
+            self.realise_widget.value_label.setText("--:--:--")
+        
+        # Masquer le message de chargement
+        if hasattr(self, 'loading_label'):
+            self.loading_label.setVisible(False)
+        
+        logger.debug("Données de l'employé précédent effacées")
     
     def hide_employee_info(self):
         """Cache les informations de l'employé quand la carte est retirée"""
