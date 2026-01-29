@@ -189,7 +189,7 @@ class RFIDReaderPCSC:
         """Arrête la lecture continue"""
         if self.running:
             self.running = False
-            if self.read_thread:
+            if self.read_thread and threading.current_thread() != self.read_thread:
                 self.read_thread.join(timeout=2)
             logger.info("Lecture PC/SC continue arrêtée")
     
