@@ -15,7 +15,14 @@ fi
 # Activer l'environnement virtuel
 source venv/bin/activate
 
-# Installer pyscard si nécessaire
+# Vérifier si les dépendances sont installées
+python3 -c "import PyQt5" &> /dev/null
+if [ $? -ne 0 ]; then
+    echo "Installation des dépendances..."
+    pip install -r requirements.txt
+fi
+
+# Installer pyscard si nécessaire (optionnel pour PC/SC)
 python3 -c "import pyscard" &> /dev/null
 if [ $? -ne 0 ]; then
     echo "Installation de pyscard..."
