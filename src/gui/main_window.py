@@ -10,8 +10,9 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QFrame, QGridLayout, QApplication, QLineEdit)
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QPropertyAnimation, QEasingCurve, QSize
+from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap, QIcon
+from PyQt5.QtSvg import QSvgWidget
 
 import requests
 import urllib3
@@ -142,23 +143,30 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(30, 0, 30, 0)
         
         # Logo
-        logo_label = QLabel()
-        logo_path = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.png'
+        logo_path_svg = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.svg'
+        logo_path_png = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.png'
         
-        if logo_path.exists():
-            # Charger et afficher le logo
-            pixmap = QPixmap(str(logo_path))
+        # Priorité au SVG, sinon PNG, sinon fallback texte
+        if logo_path_svg.exists():
+            # Charger le logo SVG
+            svg_widget = QSvgWidget(str(logo_path_svg))
+            svg_widget.setFixedSize(QSize(150, 42))  # Largeur max 150px, hauteur 42px
+            layout.addWidget(svg_widget)
+        elif logo_path_png.exists():
+            # Charger le logo PNG
+            logo_label = QLabel()
+            pixmap = QPixmap(str(logo_path_png))
             # Redimensionner le logo (42px de hauteur = réduction de 30% par rapport aux 60px initiaux)
             scaled_pixmap = pixmap.scaledToHeight(42, Qt.SmoothTransformation)
             logo_label.setPixmap(scaled_pixmap)
+            layout.addWidget(logo_label)
         else:
-            # Fallback: afficher le texte si le logo n'existe pas
-            logo_label.setText("Pointage")
+            # Fallback: afficher le texte si aucun logo n'existe
+            logo_label = QLabel("Pointage")
             logo_label.setFont(QFont("Arial", 24, QFont.Bold))
             logo_label.setStyleSheet("color: white;")
-            logger.warning(f"Logo non trouvé: {logo_path}")
-        
-        layout.addWidget(logo_label)
+            layout.addWidget(logo_label)
+            logger.warning(f"Logo non trouvé (ni SVG ni PNG)")
         
         layout.addStretch()
         
