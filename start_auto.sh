@@ -42,6 +42,9 @@ fi
 echo "Détection du lecteur RFID..."
 python3 diagnostic_lecteur.py > /tmp/rfid_detection.txt 2>&1
 
+# Forcer l'utilisation de X11 au lieu de Wayland pour éviter les avertissements
+export QT_QPA_PLATFORM=xcb
+
 if grep -q "PC/SC" /tmp/rfid_detection.txt; then
     echo "✓ Lecteur PC/SC détecté (ACR1252)"
     echo "Lancement avec main_pcsc_auto.py"
