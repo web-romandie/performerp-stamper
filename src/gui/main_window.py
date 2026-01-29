@@ -182,9 +182,9 @@ class MainWindow(QMainWindow):
         self.date_label.setStyleSheet("color: #7f8c8d; background: transparent;")
         layout.addWidget(self.date_label)
         
-        # Liste des pointages du jour
+        # Liste des pointages du jour (taille réduite de 20% : 16 → 13)
         self.pointages_label = QLabel()
-        self.pointages_label.setFont(QFont("Arial", 16))
+        self.pointages_label.setFont(QFont("Arial", 13))
         self.pointages_label.setAlignment(Qt.AlignCenter)
         self.pointages_label.setStyleSheet("color: #7f8c8d; background: transparent; padding: 10px;")
         self.pointages_label.setVisible(False)  # Caché par défaut
@@ -284,9 +284,9 @@ class MainWindow(QMainWindow):
         title_label.setStyleSheet("color: #7f8c8d; border: none;")
         layout.addWidget(title_label)
         
-        # Valeur
+        # Valeur (taille réduite de 20% : 32 → 26)
         value_label = QLabel(value)
-        value_label.setFont(QFont("Arial", 32, QFont.Bold))
+        value_label.setFont(QFont("Arial", 26, QFont.Bold))
         value_label.setStyleSheet(f"color: {color}; border: none;")
         value_label.setObjectName("valueLabel")
         layout.addWidget(value_label)
