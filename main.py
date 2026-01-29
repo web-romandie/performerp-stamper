@@ -2,9 +2,30 @@
 Point d'entrée principal du système de pointage RFID
 """
 import sys
+import os
+import platform
 import logging
 from pathlib import Path
 from PyQt5.QtWidgets import QApplication
+
+# Configuration Qt selon le système d'exploitation
+def configure_qt_platform():
+    """Configure automatiquement la plateforme Qt selon l'OS"""
+    system = platform.system()
+    
+    if system == "Darwin":  # macOS
+        # Sur macOS, utiliser cocoa (natif)
+        if "QT_QPA_PLATFORM" in os.environ:
+            del os.environ["QT_QPA_PLATFORM"]
+        logging.info("macOS détecté - utilisation de cocoa (natif)")
+    elif system == "Linux":  # Raspberry Pi / Linux
+        # Sur Linux, forcer X11 (xcb) pour éviter les problèmes Wayland
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
+        logging.info("Linux détecté - utilisation de X11 (xcb)")
+    # Windows n'a pas besoin de configuration spéciale
+
+# Configurer Qt AVANT de l'importer
+configure_qt_platform()
 
 # Ajouter le répertoire parent au path
 sys.path.insert(0, str(Path(__file__).parent))
