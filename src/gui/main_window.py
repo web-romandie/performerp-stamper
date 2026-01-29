@@ -150,7 +150,16 @@ class MainWindow(QMainWindow):
         if logo_path_svg.exists():
             # Charger le logo SVG
             svg_widget = QSvgWidget(str(logo_path_svg))
-            svg_widget.setFixedSize(QSize(150, 42))  # Largeur max 150px, hauteur 42px
+            # Définir seulement la hauteur, la largeur s'adaptera automatiquement au ratio d'aspect
+            svg_widget.setFixedHeight(42)
+            # Calculer la largeur proportionnelle en fonction du ratio d'aspect du SVG
+            # Le renderer nous donne les dimensions originales du SVG
+            renderer = svg_widget.renderer()
+            if renderer.isValid():
+                default_size = renderer.defaultSize()
+                if default_size.height() > 0:
+                    ratio = default_size.width() / default_size.height()
+                    svg_widget.setFixedWidth(int(42 * ratio))
             layout.addWidget(svg_widget)
         elif logo_path_png.exists():
             # Charger le logo PNG
