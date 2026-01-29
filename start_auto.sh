@@ -9,7 +9,7 @@ echo ""
 # Vérifier si l'environnement virtuel existe
 if [ ! -d "venv" ]; then
     echo "Création de l'environnement virtuel..."
-    python3 -m venv venv
+    python3 -m venv venv --system-site-packages
 fi
 
 # Activer l'environnement virtuel
@@ -18,8 +18,17 @@ source venv/bin/activate
 # Vérifier si les dépendances sont installées
 python3 -c "import PyQt5" &> /dev/null
 if [ $? -ne 0 ]; then
-    echo "Installation des dépendances..."
-    pip install -r requirements.txt
+    echo "PyQt5 non trouvé. Installation des dépendances système..."
+    echo "Veuillez exécuter d'abord : sudo apt-get install -y python3-pyqt5"
+    echo "Ou lancez le script d'installation complet : ./install_raspberry.sh"
+    exit 1
+fi
+
+# Installer les autres dépendances (sans PyQt5)
+python3 -c "import serial" &> /dev/null
+if [ $? -ne 0 ]; then
+    echo "Installation des dépendances Python..."
+    pip install pyserial python-dotenv schedule
 fi
 
 # Installer pyscard si nécessaire (optionnel pour PC/SC)
