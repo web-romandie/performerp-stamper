@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QPushButton, QTableWidget, QTableWidgetItem,
                              QDateEdit, QMessageBox, QTabWidget, QTextEdit, QComboBox,
                              QLineEdit, QGroupBox, QFrame)
-from PyQt5.QtCore import Qt, QDate, QTimer
+from PyQt5.QtCore import Qt, QDate, QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QFont
 import logging
 import requests
@@ -18,6 +18,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger(__name__)
 
 
+class LogSignal(QObject):
+    """Signal pour les logs thread-safe"""
+    log_message = pyqtSignal(str)
+
+
 class AdminPanel(QMainWindow):
     """Panneau d'administration"""
     
@@ -27,6 +32,10 @@ class AdminPanel(QMainWindow):
         self.db_manager = db_manager
         self.rfid_reader = rfid_reader
         self.restore_rfid_callback = restore_rfid_callback  # Callback pour restaurer la lecture normale
+        
+        # Signal pour les logs thread-safe
+        self.log_signal = LogSignal()
+        self.log_signal.log_message.connect(self._append_log_safe)
         
         # Charger la configuration API
         try:
@@ -745,7 +754,11 @@ class AdminPanel(QMainWindow):
             self.rfid_save_btn.setEnabled(True)
     
     def rfid_log(self, message):
-        """Ajoute un message au log RFID"""
+        """Ajoute un message au log RFID (thread-safe)"""
+        self.log_signal.log_message.emit(message)
+    
+    def _append_log_safe(self, message):
+        """Ajoute un message au log de manière thread-safe"""
         self.rfid_log_display.append(message)
         cursor = self.rfid_log_display.textCursor()
         cursor.movePosition(cursor.End)
