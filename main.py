@@ -6,26 +6,28 @@ import os
 import platform
 import logging
 from pathlib import Path
-from PyQt5.QtWidgets import QApplication
 
 # Configuration Qt selon le système d'exploitation
 def configure_qt_platform():
     """Configure automatiquement la plateforme Qt selon l'OS"""
+    # Ne rien faire si QT_QPA_PLATFORM est déjà défini (par start_auto.sh par exemple)
+    if "QT_QPA_PLATFORM" in os.environ:
+        return
+    
     system = platform.system()
     
     if system == "Darwin":  # macOS
-        # Sur macOS, utiliser cocoa (natif)
-        if "QT_QPA_PLATFORM" in os.environ:
-            del os.environ["QT_QPA_PLATFORM"]
-        logging.info("macOS détecté - utilisation de cocoa (natif)")
+        # Sur macOS, ne rien définir (utilise cocoa par défaut)
+        pass
     elif system == "Linux":  # Raspberry Pi / Linux
         # Sur Linux, forcer X11 (xcb) pour éviter les problèmes Wayland
         os.environ["QT_QPA_PLATFORM"] = "xcb"
-        logging.info("Linux détecté - utilisation de X11 (xcb)")
     # Windows n'a pas besoin de configuration spéciale
 
-# Configurer Qt AVANT de l'importer
+# Configurer Qt AVANT d'importer PyQt5
 configure_qt_platform()
+
+from PyQt5.QtWidgets import QApplication
 
 # Ajouter le répertoire parent au path
 sys.path.insert(0, str(Path(__file__).parent))
