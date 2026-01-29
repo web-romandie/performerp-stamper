@@ -1,0 +1,16 @@
+{
+  "employees": [
+    {
+      "employee_id": "EMP001",
+      "name": "Jean Dupont",
+      "rfid": "1234567890",
+      "rang": 1
+    },
+    {
+      "employee_id": "EMP002",
+      "name": "Marie Martin",
+      "rfid": "0987654321",
+      "rang": 0
+    }
+  ]
+}
