@@ -148,8 +148,8 @@ class MainWindow(QMainWindow):
         if logo_path.exists():
             # Charger et afficher le logo
             pixmap = QPixmap(str(logo_path))
-            # Redimensionner le logo pour qu'il tienne dans la hauteur du header (60px de hauteur max)
-            scaled_pixmap = pixmap.scaledToHeight(60, Qt.SmoothTransformation)
+            # Redimensionner le logo (42px de hauteur = réduction de 30% par rapport aux 60px initiaux)
+            scaled_pixmap = pixmap.scaledToHeight(42, Qt.SmoothTransformation)
             logo_label.setPixmap(scaled_pixmap)
         else:
             # Fallback: afficher le texte si le logo n'existe pas
