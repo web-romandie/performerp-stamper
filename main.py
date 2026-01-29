@@ -7,7 +7,7 @@ import platform
 import logging
 from pathlib import Path
 
-# Configuration Qt selon le système d'exploitation
+# Configuration Qt selon le système d'exploitation (AVANT d'importer PyQt5)
 def configure_qt_platform():
     """Configure automatiquement la plateforme Qt selon l'OS"""
     # Ne rien faire si QT_QPA_PLATFORM est déjà défini (par start_auto.sh par exemple)
@@ -27,10 +27,11 @@ def configure_qt_platform():
 # Configurer Qt AVANT d'importer PyQt5
 configure_qt_platform()
 
-from PyQt5.QtWidgets import QApplication
-
 # Ajouter le répertoire parent au path
 sys.path.insert(0, str(Path(__file__).parent))
+
+# Maintenant on peut importer PyQt5 et les autres modules
+from PyQt5.QtWidgets import QApplication
 
 from config import settings
 from src.database import DatabaseManager
