@@ -3,6 +3,7 @@ Interface moderne de pointage - Version horizontale
 Inspirée de l'application Tipee avec un design épuré et intuitif
 """
 
+import csv
 import json
 import logging
 from datetime import datetime, time
@@ -108,6 +109,7 @@ class MainWindow(QMainWindow):
         self.rfid_signal = RFIDSignal()
         self.rfid_signal.card_detected.connect(self.on_card_detected)
         
+        self.default_instruction = self._get_ephemeride_du_jour() or "Présentez votre badge RFID"
         self.init_ui()
         self.start_rfid_reading()
         
@@ -270,10 +272,11 @@ class MainWindow(QMainWindow):
         self.pointages_label.setVisible(False)  # Caché par défaut
         layout.addWidget(self.pointages_label)
         
-        # Message d'instruction
-        self.instruction_label = QLabel("Présentez votre badge RFID")
+        # Message d'instruction : éphéméride du jour (saint + journée mondiale) ou texte par défaut
+        self.instruction_label = QLabel(self.default_instruction)
         self.instruction_label.setFont(QFont("Arial", 24))
         self.instruction_label.setAlignment(Qt.AlignCenter)
+        self.instruction_label.setWordWrap(True)
         self.instruction_label.setStyleSheet("""
             color: #3498db;
             background: transparent;
@@ -461,6 +464,42 @@ class MainWindow(QMainWindow):
         logger.info("Rechargement du fichier employees.json...")
         self.employees = self.load_employees()
         logger.info(f"Fichier rechargé: {len(self.employees)} employés")
+    
+    def _get_ephemeride_du_jour(self):
+        """Retourne l'éphéméride du jour (saint + journée mondiale) depuis ephemeride_2ans.csv."""
+        try:
+            csv_path = Path(__file__).resolve().parent.parent.parent / "ephemeride_2ans.csv"
+            if not csv_path.exists():
+                return ""
+            today = datetime.now().date().isoformat()
+            # utf-8-sig pour ignorer un éventuel BOM (Excel, Windows)
+            with open(csv_path, "r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f, delimiter=";")
+                for row in reader:
+                    if row.get("date") != today:
+                        continue
+                    # Saint : 2e colonne (clé "saint")
+                    saint = (row.get("saint") or "").strip()
+                    # Journée mondiale : 3e colonne (plusieurs clés possibles selon encodage/export)
+                    journee = (row.get("journee_mondiale") or row.get("journée_mondiale") or "").strip()
+                    if not journee and len(row) >= 3:
+                        vals = list(row.values())
+                        if len(vals) >= 3:
+                            journee = (vals[2] or "").strip()
+                    # Toujours afficher saint et/ou journée mondiale quand présents
+            parts = []
+            if saint:
+                parts.append(saint)
+            if journee:
+                parts.append(journee)
+            if parts:
+                # Saint et journée mondiale sur des lignes séparées
+                return "\n".join(parts)
+            return ""
+            return ""
+        except Exception as e:
+            logger.debug(f"Éphéméride non chargée: {e}")
+            return ""
     
     def sync_employees_from_api(self):
         """Synchronise employees.json depuis l'API (télécharge et recharge la liste)."""
@@ -854,8 +893,8 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(3000, lambda: self.reset_instruction_message())
         
     def reset_instruction_message(self):
-        """Restaure le message d'instruction par défaut"""
-        self.instruction_label.setText("Présentez votre badge RFID")
+        """Restaure le message d'instruction par défaut (éphéméride du jour)"""
+        self.instruction_label.setText(self.default_instruction)
         self.instruction_label.setStyleSheet("color: #3498db; background: transparent; padding: 30px;")
         
     def request_admin_pin(self):
