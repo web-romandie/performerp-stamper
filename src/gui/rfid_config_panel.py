@@ -6,7 +6,7 @@ Permet d'associer un badge RFID à un employé via l'API du site web
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QComboBox, QLineEdit, QTextEdit,
-    QGroupBox, QMessageBox, QFrame
+    QGroupBox, QMessageBox, QFrame, QGridLayout
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
@@ -100,36 +100,59 @@ class RFIDConfigPanel(QWidget):
         employee_group.setLayout(employee_layout)
         layout.addWidget(employee_group)
         
-        # Section 3: Scan du badge
+        # Section 3: Scan du badge (design compact 2 colonnes)
         scan_group = QGroupBox("Configuration du badge RFID")
         scan_layout = QVBoxLayout()
+        scan_layout.setSpacing(10)
         
-        # Status du lecteur
+        # Status du lecteur (en haut, pleine largeur)
         self.reader_status = QLabel("Lecteur RFID: Non connecté")
         self.reader_status.setStyleSheet("color: red; font-weight: bold;")
+        self.reader_status.setAlignment(Qt.AlignCenter)
         scan_layout.addWidget(self.reader_status)
         
-        # Bouton pour scanner
-        self.scan_btn = QPushButton("Scannez le badge maintenant")
-        self.scan_btn.setEnabled(False)
-        self.scan_btn.setMinimumHeight(60)
-        self.scan_btn.clicked.connect(self.start_scanning)
-        scan_layout.addWidget(self.scan_btn)
+        # Layout en 2 colonnes pour boutons et affichage RFID
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(10)
         
-        # Code RFID scanné
-        rfid_layout = QHBoxLayout()
-        rfid_layout.addWidget(QLabel("Code RFID:"))
+        # Colonne 1: Bouton scanner (compact)
+        self.scan_btn = QPushButton("🔍 Scanner le badge")
+        self.scan_btn.setEnabled(False)
+        self.scan_btn.setMinimumHeight(50)
+        self.scan_btn.setMaximumWidth(250)
+        self.scan_btn.clicked.connect(self.start_scanning)
+        grid_layout.addWidget(self.scan_btn, 0, 0)
+        
+        # Colonne 2: Bouton enregistrer (compact)
+        self.save_btn = QPushButton("💾 Enregistrer")
+        self.save_btn.setEnabled(False)
+        self.save_btn.setMinimumHeight(50)
+        self.save_btn.setMaximumWidth(250)
+        self.save_btn.clicked.connect(self.save_rfid_association)
+        grid_layout.addWidget(self.save_btn, 0, 1)
+        
+        scan_layout.addLayout(grid_layout)
+        
+        # Code RFID scanné (sous les boutons, pleine largeur)
+        rfid_container = QHBoxLayout()
+        rfid_container.setSpacing(10)
+        rfid_label = QLabel("Code RFID:")
+        rfid_label.setMinimumWidth(80)
         self.rfid_display = QLineEdit()
         self.rfid_display.setReadOnly(True)
-        self.rfid_display.setPlaceholderText("En attente du scan...")
-        rfid_layout.addWidget(self.rfid_display)
-        scan_layout.addLayout(rfid_layout)
-        
-        # Bouton pour enregistrer
-        self.save_btn = QPushButton("Enregistrer l'association")
-        self.save_btn.setEnabled(False)
-        self.save_btn.clicked.connect(self.save_rfid_association)
-        scan_layout.addWidget(self.save_btn)
+        self.rfid_display.setPlaceholderText("En attente...")
+        self.rfid_display.setStyleSheet("""
+            QLineEdit {
+                padding: 8px;
+                font-size: 13px;
+                background-color: #f5f5f5;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+        """)
+        rfid_container.addWidget(rfid_label)
+        rfid_container.addWidget(self.rfid_display)
+        scan_layout.addLayout(rfid_container)
         
         scan_group.setLayout(scan_layout)
         layout.addWidget(scan_group)
@@ -262,7 +285,8 @@ class RFIDConfigPanel(QWidget):
         
         self.waiting_for_scan = True
         self.rfid_display.clear()
-        self.scan_btn.setText("⏳ En attente du scan...")
+        self.rfid_display.setPlaceholderText("Scannez maintenant...")
+        self.scan_btn.setText("⏳ En attente...")
         self.scan_btn.setStyleSheet("background-color: orange; color: white; font-weight: bold;")
         self.scan_btn.setEnabled(False)
         self.save_btn.setEnabled(False)
@@ -295,7 +319,7 @@ class RFIDConfigPanel(QWidget):
         
     def reset_scan_button(self):
         """Réinitialise le bouton de scan"""
-        self.scan_btn.setText("Scannez le badge maintenant")
+        self.scan_btn.setText("🔍 Scanner le badge")
         self.scan_btn.setStyleSheet("")
         self.scan_btn.setEnabled(True)
         
