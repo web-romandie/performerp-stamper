@@ -72,17 +72,11 @@ class MainWindow(QMainWindow):
         self.db_manager = db_manager
         self.rfid_reader = rfid_reader
         self.employees_file = Path(employees_file)
-        self.show_admin_on_start = False  # Flag pour afficher l'admin au démarrage
         self.employees = self.load_employees()
-        
-        # Afficher le bouton Admin si aucun employé configuré
-        if not self.employees or len(self.employees) == 0:
-            # Pas d'employés = premier démarrage, afficher le bouton admin
-            # Le bouton sera créé plus tard dans create_header
-            self.show_admin_on_start = True
-            logger.info("Aucun employé configuré - bouton Admin sera affiché")
-        else:
-            self.show_admin_on_start = False
+        # Afficher le bouton Admin seulement s'il n'y a aucun utilisateur de rang 1 (accès admin par code)
+        self.show_admin_on_start = not self._has_rank1_employee()
+        if self.show_admin_on_start:
+            logger.info("Aucun employé rang 1 - bouton Administration affiché (accès par code)")
         
         # Configuration API (chargée depuis config/api_config.py)
         try:
@@ -222,7 +216,7 @@ class MainWindow(QMainWindow):
         
         layout.addStretch()
         
-        # Bouton Administration (masqué par défaut, visible uniquement pour rang=1)
+        # Bouton Administration (visible s'il n'y a aucun employé rang 1 — accès par code)
         self.admin_btn = QPushButton("⚙️ Administration")
         self.admin_btn.setObjectName("adminBtn")
         self.admin_btn.clicked.connect(self.request_admin_pin)
@@ -428,6 +422,12 @@ class MainWindow(QMainWindow):
         
         self.date_label.setText(f"{jour_semaine} {now.day} {mois_nom} {now.year}")
         
+    def _has_rank1_employee(self):
+        """Indique s'il existe au moins un employé de rang 1 (administrateur)."""
+        if not self.employees:
+            return False
+        return any(emp.get('rang') == 1 for emp in self.employees.values())
+
     def load_employees(self):
         """Charge la liste des employés depuis le fichier JSON"""
         try:
@@ -486,6 +486,13 @@ class MainWindow(QMainWindow):
             logger.warning(f"Badge inconnu: {rfid_code}")
             self.show_error_message("Badge non reconnu")
             self.is_processing = False
+            return
+        
+        # Rang 1 = administrateur : ouvrir directement l'admin sans timbrage ni code
+        if employee.get('rang') == 1:
+            logger.info("Badge rang 1 — ouverture directe de l'administration")
+            self.is_processing = False
+            self.open_admin()
             return
         
         # Marquer comme présent
@@ -602,12 +609,6 @@ class MainWindow(QMainWindow):
         
         # Afficher le message de chargement
         self.loading_label.setVisible(True)
-        
-        # Afficher le bouton Admin si l'employé est administrateur (rang=1)
-        if employee.get('rang') == 1:
-            self.admin_btn.setVisible(True)
-            logger.info("Bouton Administration affiché (employé rang=1)")
-        
     
     def show_status_message(self, message, success=None):
         """Affiche un message de statut temporaire"""
@@ -769,8 +770,8 @@ class MainWindow(QMainWindow):
         self.pointages_label.setVisible(False)
         self.pointages_label.setText("")
         
-        # Masquer le bouton Administration
-        self.admin_btn.setVisible(False)
+        # Bouton Admin visible seulement s'il n'y a aucun employé rang 1
+        self.admin_btn.setVisible(not self._has_rank1_employee())
         
         # Réinitialiser les cartes d'information si elles existent
         if hasattr(self, 'planif_widget') and hasattr(self.planif_widget, 'value_label'):
@@ -807,8 +808,8 @@ class MainWindow(QMainWindow):
         # Masquer les pointages
         self.pointages_label.setVisible(False)
         
-        # Masquer le bouton Administration
-        self.admin_btn.setVisible(False)
+        # Bouton Admin visible seulement s'il n'y a aucun employé rang 1
+        self.admin_btn.setVisible(not self._has_rank1_employee())
         
         # Restaurer le message d'instruction par défaut
         self.reset_instruction_message()
@@ -878,6 +879,9 @@ class MainWindow(QMainWindow):
     def restore_main_rfid_reading(self):
         """Restaure la lecture RFID principale après fermeture de l'admin"""
         try:
+            # Recharger les employés (un rang 1 peut avoir été ajouté/supprimé)
+            self.reload_employees()
+            self.admin_btn.setVisible(not self._has_rank1_employee())
             if not self.rfid_reader.is_reading():
                 self.start_rfid_reading()
                 logger.info("Lecture RFID principale restaurée après administration")
