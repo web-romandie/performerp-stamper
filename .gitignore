@@ -51,3 +51,5 @@ Thumbs.db
 
 # Employee data (contains RFID codes - regenerated from API)
 config/employees.json
+CONNEXION_RASPBERRY.md
+assets/README.md
