@@ -119,7 +119,7 @@ class RFIDReaderPCSC:
             if sw1 == 0x90 and sw2 == 0x00:
                 # Convertir en chaîne hexadécimale
                 uid = toHexString(data).replace(' ', '')
-                logger.debug(f"UID lu: {uid}")
+                logger.info(f"✓ CARTE DÉTECTÉE - UID: {uid}")
                 connection.disconnect()
                 return uid
             else:
@@ -128,10 +128,10 @@ class RFIDReaderPCSC:
                 return None
                 
         except NoCardException:
-            # Pas de carte présente (normal)
+            # Pas de carte présente (normal - pas de log pour ne pas polluer)
             return None
         except CardConnectionException as e:
-            logger.debug(f"Erreur connexion carte: {e}")
+            logger.info(f"Erreur connexion carte: {e}")
             return None
         except Exception as e:
             logger.error(f"Erreur lecture UID: {e}")
@@ -152,9 +152,12 @@ class RFIDReaderPCSC:
                 if uid and (uid != self.last_uid or current_time - self.last_read_time > debounce_time):
                     self.last_uid = uid
                     self.last_read_time = current_time
+                    logger.info(f"→ Appel du callback avec UID: {uid}")
                     
                     if self.callback:
                         self.callback(uid)
+                    else:
+                        logger.warning("Callback non défini !")
                 
                 time.sleep(0.3)  # Vérifier toutes les 300ms
                 
