@@ -9,7 +9,8 @@ from datetime import datetime, time
 from pathlib import Path
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                             QLabel, QPushButton, QFrame, QGridLayout, QApplication, QLineEdit)
+                             QLabel, QPushButton, QFrame, QGridLayout, QApplication, QLineEdit, 
+                             QDialog, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QPropertyAnimation, QEasingCurve, QSize
 from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap, QIcon, QImage, QPainter
 
@@ -831,30 +832,165 @@ class MainWindow(QMainWindow):
         self.instruction_label.setStyleSheet("color: #3498db; background: transparent; padding: 30px;")
         
     def request_admin_pin(self):
-        """Demande le code PIN avant d'ouvrir l'administration"""
-        from PyQt5.QtWidgets import QInputDialog, QMessageBox
+        """Demande le code PIN avec un pavé numérique tactile"""
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QMessageBox
         
-        # Demander le code PIN
-        pin, ok = QInputDialog.getText(
-            self,
-            "Code PIN requis",
-            "Entrez le code PIN administrateur:",
-            echo=QLineEdit.Password
-        )
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Code PIN Administrateur")
+        dialog.setModal(True)
+        dialog.setFixedSize(400, 550)
         
-        if ok:
-            # Vérifier le PIN (8179)
-            if pin == "8179":
-                logger.info("Code PIN correct - Ouverture administration")
-                self.open_admin()
-            else:
-                logger.warning("Code PIN incorrect")
-                QMessageBox.warning(
-                    self,
-                    "Accès refusé",
-                    "Code PIN incorrect.",
-                    QMessageBox.Ok
-                )
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        # Label instruction
+        instruction = QLabel("Entrez le code PIN :")
+        instruction.setFont(QFont("Arial", 18))
+        instruction.setAlignment(Qt.AlignCenter)
+        layout.addWidget(instruction)
+        
+        # Affichage du code (masqué avec des points)
+        pin_display = QLabel("••••")
+        pin_display.setFont(QFont("Arial", 36, QFont.Bold))
+        pin_display.setAlignment(Qt.AlignCenter)
+        pin_display.setStyleSheet("""
+            background-color: white;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            padding: 20px;
+            color: #2c3e50;
+        """)
+        layout.addWidget(pin_display)
+        
+        # Variable pour stocker le PIN
+        pin_value = []
+        
+        def update_display():
+            pin_display.setText("•" * len(pin_value) if pin_value else "••••")
+        
+        def on_number_click(num):
+            if len(pin_value) < 4:
+                pin_value.append(str(num))
+                update_display()
+        
+        def on_clear():
+            pin_value.clear()
+            update_display()
+        
+        def on_validate():
+            if len(pin_value) == 4:
+                entered_pin = "".join(pin_value)
+                if entered_pin == "8179":
+                    logger.info("Code PIN correct - Ouverture administration")
+                    dialog.accept()
+                    self.open_admin()
+                else:
+                    logger.warning("Code PIN incorrect")
+                    QMessageBox.warning(dialog, "Accès refusé", "Code PIN incorrect.", QMessageBox.Ok)
+                    pin_value.clear()
+                    update_display()
+        
+        # Grille de boutons numériques (3x4)
+        grid = QGridLayout()
+        grid.setSpacing(15)
+        
+        # Boutons 1-9
+        for i in range(1, 10):
+            btn = QPushButton(str(i))
+            btn.setFixedSize(100, 80)
+            btn.setFont(QFont("Arial", 24, QFont.Bold))
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #ecf0f1;
+                    border: 2px solid #bdc3c7;
+                    border-radius: 10px;
+                    color: #2c3e50;
+                }
+                QPushButton:pressed {
+                    background-color: #3498db;
+                    color: white;
+                }
+            """)
+            btn.clicked.connect(lambda checked, num=i: on_number_click(num))
+            row = (i - 1) // 3
+            col = (i - 1) % 3
+            grid.addWidget(btn, row, col)
+        
+        # Bouton 0, Effacer, Valider
+        btn_clear = QPushButton("⌫")
+        btn_clear.setFixedSize(100, 80)
+        btn_clear.setFont(QFont("Arial", 28, QFont.Bold))
+        btn_clear.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                border: none;
+                border-radius: 10px;
+                color: white;
+            }
+            QPushButton:pressed {
+                background-color: #c0392b;
+            }
+        """)
+        btn_clear.clicked.connect(on_clear)
+        grid.addWidget(btn_clear, 3, 0)
+        
+        btn_zero = QPushButton("0")
+        btn_zero.setFixedSize(100, 80)
+        btn_zero.setFont(QFont("Arial", 24, QFont.Bold))
+        btn_zero.setStyleSheet("""
+            QPushButton {
+                background-color: #ecf0f1;
+                border: 2px solid #bdc3c7;
+                border-radius: 10px;
+                color: #2c3e50;
+            }
+            QPushButton:pressed {
+                background-color: #3498db;
+                color: white;
+            }
+        """)
+        btn_zero.clicked.connect(lambda: on_number_click(0))
+        grid.addWidget(btn_zero, 3, 1)
+        
+        btn_validate = QPushButton("✓")
+        btn_validate.setFixedSize(100, 80)
+        btn_validate.setFont(QFont("Arial", 28, QFont.Bold))
+        btn_validate.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                border: none;
+                border-radius: 10px;
+                color: white;
+            }
+            QPushButton:pressed {
+                background-color: #229954;
+            }
+        """)
+        btn_validate.clicked.connect(on_validate)
+        grid.addWidget(btn_validate, 3, 2)
+        
+        layout.addLayout(grid)
+        
+        # Bouton Annuler
+        btn_cancel = QPushButton("Annuler")
+        btn_cancel.setFont(QFont("Arial", 14))
+        btn_cancel.setFixedHeight(50)
+        btn_cancel.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                border: none;
+                border-radius: 10px;
+            }
+            QPushButton:pressed {
+                background-color: #7f8c8d;
+            }
+        """)
+        btn_cancel.clicked.connect(dialog.reject)
+        layout.addWidget(btn_cancel)
+        
+        dialog.exec_()
     
     def open_admin(self):
         """Ouvre le panneau d'administration"""
