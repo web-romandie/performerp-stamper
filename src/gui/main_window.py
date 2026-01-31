@@ -58,6 +58,8 @@ import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from config import settings
+
 
 class RFIDSignal(QObject):
     """Signal pour la détection de carte RFID"""
@@ -118,6 +120,16 @@ class MainWindow(QMainWindow):
         self.card_check_timer = QTimer()
         self.card_check_timer.timeout.connect(self.check_card_presence)
         self.card_check_timer.start(2000)  # Vérifier toutes les 2 secondes
+        
+        # Synchronisation automatique des employés depuis l'API (optionnel)
+        self.employees_sync_timer = None
+        if getattr(settings, 'EMPLOYEES_SYNC_INTERVAL', 0) > 0:
+            interval_ms = settings.EMPLOYEES_SYNC_INTERVAL * 1000
+            self.employees_sync_timer = QTimer()
+            self.employees_sync_timer.timeout.connect(self.sync_employees_from_api)
+            self.employees_sync_timer.start(interval_ms)
+            logger.info(f"Synchronisation automatique employés activée (toutes les {settings.EMPLOYEES_SYNC_INTERVAL}s)")
+            QTimer.singleShot(5000, self.sync_employees_from_api)  # Premier sync 5 s après démarrage
         
     def init_ui(self):
         """Initialise l'interface utilisateur moderne"""
@@ -449,6 +461,21 @@ class MainWindow(QMainWindow):
         logger.info("Rechargement du fichier employees.json...")
         self.employees = self.load_employees()
         logger.info(f"Fichier rechargé: {len(self.employees)} employés")
+    
+    def sync_employees_from_api(self):
+        """Synchronise employees.json depuis l'API (télécharge et recharge la liste)."""
+        try:
+            url = f"{self.api_url}/api_download_employees_json.php?id_compte={self.id_compte}"
+            response = requests.get(url, headers=self.get_api_headers(), timeout=15, verify=False)
+            response.raise_for_status()
+            with open(self.employees_file, 'w', encoding='utf-8') as f:
+                f.write(response.text)
+            data = json.loads(response.text)
+            count = len(data) if isinstance(data, list) else len(data.get('employees', []))
+            self.reload_employees()
+            logger.info(f"Synchronisation employés OK: {count} employé(s)")
+        except Exception as e:
+            logger.warning(f"Synchronisation employés échouée: {e}")
         
     def start_rfid_reading(self):
         """Démarre la lecture RFID"""
@@ -1031,6 +1058,9 @@ class MainWindow(QMainWindow):
         
         if self.data_fetch_timer:
             self.data_fetch_timer.stop()
+        
+        if self.employees_sync_timer:
+            self.employees_sync_timer.stop()
             
         event.accept()
 

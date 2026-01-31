@@ -43,6 +43,10 @@ RFID_PORT = os.getenv("RFID_PORT", "")  # Laissez vide pour auto-détection
 RFID_BAUDRATE = int(os.getenv("RFID_BAUDRATE", "9600"))
 RFID_TIMEOUT = float(os.getenv("RFID_TIMEOUT", "1.0"))
 
+# Synchronisation automatique des employés (employees.json) depuis l'API
+# 0 = désactivée, sinon intervalle en secondes (ex: 1800 = 30 min, 3600 = 1 h)
+EMPLOYEES_SYNC_INTERVAL = int(os.getenv("EMPLOYEES_SYNC_INTERVAL", "0"))
+
 # Configuration de l'interface
 WINDOW_TITLE = f"Système de Pointage - {COMPANY_NAME}"
 WINDOW_WIDTH = 1024
