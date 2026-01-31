@@ -468,53 +468,56 @@ class AdminPanel(QMainWindow):
         
         layout.addLayout(top_row)
         
-        # Section 3: Scan du badge
+        # Section 3: Scan du badge (2 colonnes : Scanner | Enregistrer)
         scan_group = QGroupBox("Configuration du badge RFID")
         scan_layout = QVBoxLayout()
+        scan_layout.setSpacing(15)
         
         # Status du lecteur
         self.rfid_reader_status = QLabel("Lecteur RFID: Vérification...")
-        self.rfid_reader_status.setStyleSheet("font-size: 12px; font-weight: bold;")
+        self.rfid_reader_status.setStyleSheet("font-size: 13px; font-weight: bold;")
+        self.rfid_reader_status.setAlignment(Qt.AlignCenter)
         scan_layout.addWidget(self.rfid_reader_status)
         self.check_rfid_reader_status()
         
-        # Boutons pour scanner et annuler
-        scan_btn_layout = QHBoxLayout()
+        # 2 colonnes : Scanner | Enregistrer
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(15)
         
-        self.rfid_scan_btn = QPushButton("Scannez le badge maintenant")
+        self.rfid_scan_btn = QPushButton("🔍 Scanner")
         self.rfid_scan_btn.setEnabled(False)
         self.rfid_scan_btn.setMinimumHeight(50)
         self.rfid_scan_btn.setFont(QFont("Arial", 12, QFont.Bold))
         self.rfid_scan_btn.clicked.connect(self.start_rfid_scanning)
-        scan_btn_layout.addWidget(self.rfid_scan_btn)
+        buttons_layout.addWidget(self.rfid_scan_btn)
         
-        self.rfid_cancel_btn = QPushButton("Annuler")
+        self.rfid_save_btn = QPushButton("💾 Enregistrer")
+        self.rfid_save_btn.setEnabled(False)
+        self.rfid_save_btn.setMinimumHeight(50)
+        self.rfid_save_btn.setFont(QFont("Arial", 12, QFont.Bold))
+        self.rfid_save_btn.clicked.connect(self.save_rfid_association)
+        buttons_layout.addWidget(self.rfid_save_btn)
+        
+        scan_layout.addLayout(buttons_layout)
+        
+        # Annuler le scan (visible seulement pendant l'attente)
+        self.rfid_cancel_btn = QPushButton("Annuler le scan")
         self.rfid_cancel_btn.setEnabled(False)
-        self.rfid_cancel_btn.setMinimumHeight(50)
-        self.rfid_cancel_btn.setFont(QFont("Arial", 11))
-        self.rfid_cancel_btn.setMaximumWidth(120)
+        self.rfid_cancel_btn.setVisible(False)
+        self.rfid_cancel_btn.setMaximumWidth(200)
         self.rfid_cancel_btn.clicked.connect(self.cancel_rfid_scanning)
-        scan_btn_layout.addWidget(self.rfid_cancel_btn)
-        
-        scan_layout.addLayout(scan_btn_layout)
+        scan_layout.addWidget(self.rfid_cancel_btn, 0, Qt.AlignCenter)
         
         # Code RFID scanné
         rfid_layout = QHBoxLayout()
         rfid_layout.addWidget(QLabel("Code RFID:"))
         self.rfid_display = QLineEdit()
         self.rfid_display.setReadOnly(True)
-        self.rfid_display.setPlaceholderText("En attente du scan...")
-        self.rfid_display.setMinimumHeight(35)
+        self.rfid_display.setPlaceholderText("En attente...")
+        self.rfid_display.setMinimumHeight(38)
+        self.rfid_display.setStyleSheet("padding: 8px; font-size: 13px; background-color: #f5f5f5; border: 2px solid #ccc; border-radius: 5px;")
         rfid_layout.addWidget(self.rfid_display)
         scan_layout.addLayout(rfid_layout)
-        
-        # Bouton pour enregistrer
-        self.rfid_save_btn = QPushButton("Enregistrer l'association")
-        self.rfid_save_btn.setEnabled(False)
-        self.rfid_save_btn.setMinimumHeight(45)
-        self.rfid_save_btn.setFont(QFont("Arial", 11, QFont.Bold))
-        self.rfid_save_btn.clicked.connect(self.save_rfid_association)
-        scan_layout.addWidget(self.rfid_save_btn)
         
         scan_group.setLayout(scan_layout)
         layout.addWidget(scan_group)
@@ -633,9 +636,11 @@ class AdminPanel(QMainWindow):
         
         self.rfid_waiting_for_scan = True
         self.rfid_display.clear()
-        self.rfid_scan_btn.setText("⏳ En attente du scan...")
-        self.rfid_scan_btn.setStyleSheet("background-color: orange; color: white; font-weight: bold;")
+        self.rfid_display.setPlaceholderText("Scannez maintenant...")
+        self.rfid_scan_btn.setText("⏳ Attente...")
+        self.rfid_scan_btn.setStyleSheet("background-color: orange; color: white; font-weight: bold; font-size: 12px;")
         self.rfid_scan_btn.setEnabled(False)
+        self.rfid_cancel_btn.setVisible(True)
         self.rfid_cancel_btn.setEnabled(True)
         self.rfid_save_btn.setEnabled(False)
         
@@ -680,10 +685,12 @@ class AdminPanel(QMainWindow):
     
     def reset_rfid_scan_button(self):
         """Réinitialise le bouton de scan"""
-        self.rfid_scan_btn.setText("Scannez le badge maintenant")
+        self.rfid_scan_btn.setText("🔍 Scanner")
         self.rfid_scan_btn.setStyleSheet("")
         self.rfid_scan_btn.setEnabled(True)
+        self.rfid_cancel_btn.setVisible(False)
         self.rfid_cancel_btn.setEnabled(False)
+        self.rfid_display.setPlaceholderText("En attente...")
     
     def cancel_rfid_scanning(self):
         """Annule le scan en cours"""
