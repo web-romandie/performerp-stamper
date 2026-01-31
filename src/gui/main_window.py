@@ -252,7 +252,7 @@ class MainWindow(QMainWindow):
         
         # Horloge principale
         self.clock_label = QLabel("00:00:00")
-        self.clock_label.setFont(QFont("Arial", 120, QFont.Bold))
+        self.clock_label.setFont(QFont("Arial", 102, QFont.Bold))  # -15% par rapport à 120
         self.clock_label.setAlignment(Qt.AlignCenter)
         self.clock_label.setStyleSheet("color: #2c3e50; background: transparent;")
         layout.addWidget(self.clock_label)
@@ -298,7 +298,7 @@ class MainWindow(QMainWindow):
         
         # Nom de l'employé
         self.employee_name_label = QLabel()
-        self.employee_name_label.setFont(QFont("Arial", 36, QFont.Bold))
+        self.employee_name_label.setFont(QFont("Arial", 29, QFont.Bold))  # -20% par rapport à 36
         self.employee_name_label.setStyleSheet("color: #2c3e50;")
         self.employee_name_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.employee_name_label)
@@ -666,7 +666,10 @@ class MainWindow(QMainWindow):
     
     def show_employee_info(self, employee):
         """Affiche les informations de base de l'employé"""
-        self.employee_name_label.setText(employee['name'])
+        name = employee.get('name', '')
+        if len(name) > 30:
+            name = name[:27] + "..."
+        self.employee_name_label.setText(name)
         
         # Masquer le message d'instruction
         self.instruction_label.setVisible(False)
