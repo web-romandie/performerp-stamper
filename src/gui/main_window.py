@@ -580,16 +580,16 @@ class MainWindow(QMainWindow):
         if success:
             # Afficher "Timbrage enregistré"
             self.show_status_message("✓ Timbrage enregistré", success=True)
-            
-            # Attendre 2 secondes avant de charger les données détaillées
-            if self.delayed_fetch_timer:
-                self.delayed_fetch_timer.stop()
-            self.delayed_fetch_timer = QTimer()
-            self.delayed_fetch_timer.setSingleShot(True)
-            self.delayed_fetch_timer.timeout.connect(lambda: self.fetch_employee_dashboard(id_emp))
-            self.delayed_fetch_timer.start(2000)
         else:
             self.show_status_message(f"❌ Erreur d'enregistrement\n{error_msg}", success=False)
+        
+        # Charger le dashboard (reste à faire / temps réalisé) dans tous les cas : succès ou erreur (ex. délai 60 s)
+        if self.delayed_fetch_timer:
+            self.delayed_fetch_timer.stop()
+        self.delayed_fetch_timer = QTimer()
+        self.delayed_fetch_timer.setSingleShot(True)
+        self.delayed_fetch_timer.timeout.connect(lambda: self.fetch_employee_dashboard(id_emp))
+        self.delayed_fetch_timer.start(2000)
         
         # Réinitialiser le flag après un court délai
         QTimer.singleShot(3000, lambda: setattr(self, 'is_processing', False))
