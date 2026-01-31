@@ -11,22 +11,51 @@ from pathlib import Path
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QFrame, QGridLayout, QApplication, QLineEdit)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QPropertyAnimation, QEasingCurve, QSize
-from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap, QIcon
+from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap, QIcon, QImage, QPainter
 
-# Import optionnel pour le support SVG
+# Import optionnel pour le support SVG (rendu en pixmap pour éviter plantage sur Raspberry)
 try:
-    from PyQt5.QtSvg import QSvgWidget
+    from PyQt5.QtSvg import QSvgRenderer
     SVG_AVAILABLE = True
 except ImportError:
     SVG_AVAILABLE = False
-    logger = logging.getLogger(__name__)
+    QSvgRenderer = None
+
+logger = logging.getLogger(__name__)
+if not SVG_AVAILABLE:
     logger.warning("PyQt5.QtSvg non disponible - support SVG désactivé")
+
+
+def _svg_to_pixmap(svg_path: Path, height_px: int):
+    """
+    Rend le SVG en QPixmap une seule fois (sans QSvgWidget).
+    Évite les plantages sur Raspberry tout en gardant la qualité vectorielle.
+    Retourne None en cas d'échec.
+    """
+    if not SVG_AVAILABLE or not svg_path.exists():
+        return None
+    try:
+        renderer = QSvgRenderer(str(svg_path))
+        if not renderer.isValid():
+            return None
+        default_size = renderer.defaultSize()
+        if default_size.height() <= 0:
+            return None
+        ratio = default_size.width() / default_size.height()
+        width = int(height_px * ratio)
+        image = QImage(width, height_px, QImage.Format_ARGB32)
+        image.fill(0)
+        painter = QPainter(image)
+        renderer.render(painter)
+        painter.end()
+        return QPixmap.fromImage(image)
+    except Exception as e:
+        logger.warning(f"Rendu SVG échoué ({svg_path.name}): {e}")
+        return None
 
 import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-logger = logging.getLogger(__name__)
 
 
 class RFIDSignal(QObject):
@@ -150,40 +179,41 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(header)
         layout.setContentsMargins(30, 0, 30, 0)
         
-        # Logo
+        # Logo : SVG rendu en pixmap (qualité vectorielle, stable sur Raspberry), sinon PNG, sinon texte
         logo_path_svg = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.svg'
         logo_path_png = Path(__file__).parent.parent.parent / 'assets' / 'prevenir.png'
-        
-        # Priorité au SVG (si disponible), sinon PNG, sinon fallback texte
-        if SVG_AVAILABLE and logo_path_svg.exists():
-            # Charger le logo SVG
-            svg_widget = QSvgWidget(str(logo_path_svg))
-            # Définir seulement la hauteur, la largeur s'adaptera automatiquement au ratio d'aspect
-            svg_widget.setFixedHeight(42)
-            # Calculer la largeur proportionnelle en fonction du ratio d'aspect du SVG
-            # Le renderer nous donne les dimensions originales du SVG
-            renderer = svg_widget.renderer()
-            if renderer.isValid():
-                default_size = renderer.defaultSize()
-                if default_size.height() > 0:
-                    ratio = default_size.width() / default_size.height()
-                    svg_widget.setFixedWidth(int(42 * ratio))
-            layout.addWidget(svg_widget)
-        elif logo_path_png.exists():
-            # Charger le logo PNG
+        logo_loaded = False
+        header_height_px = 42
+
+        # 1. SVG → rendu une fois en pixmap (pas de QSvgWidget = pas de plantage, qualité vectorielle)
+        pixmap = _svg_to_pixmap(logo_path_svg, header_height_px)
+        if pixmap is not None and not pixmap.isNull():
             logo_label = QLabel()
-            pixmap = QPixmap(str(logo_path_png))
-            # Redimensionner le logo (42px de hauteur = réduction de 30% par rapport aux 60px initiaux)
-            scaled_pixmap = pixmap.scaledToHeight(42, Qt.SmoothTransformation)
-            logo_label.setPixmap(scaled_pixmap)
+            logo_label.setPixmap(pixmap)
             layout.addWidget(logo_label)
-        else:
-            # Fallback: afficher le texte si aucun logo n'existe
+            logo_loaded = True
+
+        # 2. Fallback PNG
+        if not logo_loaded and logo_path_png.exists():
+            try:
+                logo_label = QLabel()
+                pixmap = QPixmap(str(logo_path_png))
+                if not pixmap.isNull():
+                    scaled_pixmap = pixmap.scaledToHeight(header_height_px, Qt.SmoothTransformation)
+                    logo_label.setPixmap(scaled_pixmap)
+                    layout.addWidget(logo_label)
+                    logo_loaded = True
+            except Exception as e:
+                logger.warning(f"Erreur chargement logo PNG: {e}")
+
+        # 3. Fallback texte
+        if not logo_loaded:
             logo_label = QLabel("Pointage")
             logo_label.setFont(QFont("Arial", 24, QFont.Bold))
             logo_label.setStyleSheet("color: white;")
             layout.addWidget(logo_label)
-            logger.warning(f"Logo non trouvé (ni SVG ni PNG)")
+            if not logo_path_png.exists() and not logo_path_svg.exists():
+                logger.warning("Logo non trouvé (ni SVG ni PNG)")
         
         layout.addStretch()
         

@@ -24,13 +24,15 @@ Ce dossier contient les ressources graphiques de l'application.
 
 ## Ordre de priorité
 
-1. `prevenir.svg` (si disponible)
-2. `prevenir.png` (si SVG absent)
+1. **`prevenir.svg`** — rendu une fois en pixmap (qualité vectorielle, stable sur Raspberry Pi)
+2. `prevenir.png` (si le SVG est absent ou si le rendu échoue)
 3. Texte "Pointage" (si aucun logo)
+
+## Qualité et Raspberry Pi
+
+Le logo SVG est rendu **une seule fois** au démarrage en image (sans utiliser le widget SVG en direct), ce qui conserve la qualité vectorielle tout en évitant les plantages sur Raspberry Pi. Si le rendu SVG échoue (par ex. module Qt SVG défaillant), l’application utilise automatiquement `prevenir.png` s’il est présent.
 
 ## Comment ajouter le logo
 
-1. Placez votre fichier `prevenir.svg` ou `prevenir.png` dans ce dossier
-2. Installez la dépendance SVG si nécessaire : `pip install PyQtSvg`
-3. Relancez l'application
-4. Le logo apparaîtra automatiquement dans l'en-tête
+1. Placez `prevenir.svg` dans ce dossier (optionnel : `prevenir.png` en secours si le rendu SVG échoue).
+2. Relancez l'application — le logo apparaîtra dans l'en-tête avec une qualité vectorielle.
