@@ -192,6 +192,9 @@ class MainWindow(QMainWindow):
             logo_label.setPixmap(pixmap)
             layout.addWidget(logo_label)
             logo_loaded = True
+            logger.debug("Logo SVG affiché")
+        elif logo_path_svg.exists():
+            logger.info("Logo SVG non affiché (rendu échoué ou Qt SVG absent) — utilisation PNG ou texte")
 
         # 2. Fallback PNG
         if not logo_loaded and logo_path_png.exists():
@@ -203,11 +206,13 @@ class MainWindow(QMainWindow):
                     logo_label.setPixmap(scaled_pixmap)
                     layout.addWidget(logo_label)
                     logo_loaded = True
+                    logger.debug("Logo PNG affiché")
             except Exception as e:
                 logger.warning(f"Erreur chargement logo PNG: {e}")
 
         # 3. Fallback texte
         if not logo_loaded:
+            logger.info("Logo non affiché — fallback texte 'Pointage' (placez assets/prevenir.png sur le Pi si le SVG échoue)")
             logo_label = QLabel("Pointage")
             logo_label.setFont(QFont("Arial", 24, QFont.Bold))
             logo_label.setStyleSheet("color: white;")
