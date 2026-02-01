@@ -133,6 +133,12 @@ class MainWindow(QMainWindow):
             logger.info(f"Synchronisation automatique employés activée (toutes les {settings.EMPLOYEES_SYNC_INTERVAL}s)")
             QTimer.singleShot(5000, self.sync_employees_from_api)  # Premier sync 5 s après démarrage
         
+        # Timer pour rafraîchir l'éphéméride à minuit
+        self.current_date = datetime.now().date()
+        self.ephemeride_timer = QTimer()
+        self.ephemeride_timer.timeout.connect(self.check_date_change)
+        self.ephemeride_timer.start(60000)  # Vérifier toutes les minutes
+        
     def init_ui(self):
         """Initialise l'interface utilisateur moderne"""
         self.setWindowTitle("Pointage - Application Moderne")
@@ -500,6 +506,19 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.debug(f"Éphéméride non chargée: {e}")
             return ""
+    
+    def check_date_change(self):
+        """Vérifie si la date a changé (minuit passé) et rafraîchit l'éphéméride."""
+        new_date = datetime.now().date()
+        if new_date != self.current_date:
+            self.current_date = new_date
+            logger.info(f"Changement de date détecté: {new_date.isoformat()}")
+            # Rafraîchir l'éphéméride
+            self.default_instruction = self._get_ephemeride_du_jour() or "Présentez votre badge RFID"
+            # Si on est sur l'écran d'accueil, mettre à jour le message
+            if not self.current_employee:
+                self.instruction_label.setText(self.default_instruction)
+                logger.info(f"Éphéméride rafraîchie: {self.default_instruction}")
     
     def sync_employees_from_api(self):
         """Synchronise employees.json depuis l'API (télécharge et recharge la liste)."""
