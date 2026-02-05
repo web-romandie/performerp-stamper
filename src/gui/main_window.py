@@ -676,11 +676,8 @@ class MainWindow(QMainWindow):
         self.current_employee = employee
         self.is_card_present = True
         
-        # Afficher le nom immédiatement
-        self.show_employee_info(employee)
-        
-        # Message simple - le pointage sera fait au retrait du badge
-        self.show_status_message("👋 Bonjour " + employee.get('name', '').split()[0])
+        # NE PAS afficher d'infos pour rester rapide
+        # Le message apparaîtra au retrait du badge
         
         # Réinitialiser le flag après un court délai
         QTimer.singleShot(3000, lambda: setattr(self, 'is_processing', False))
@@ -724,7 +721,7 @@ class MainWindow(QMainWindow):
             return False, None, f"Erreur système: {error}"
     
     def show_employee_info(self, employee):
-        """Affiche les informations de base de l'employé"""
+        """Affiche les informations de base de l'employé (SANS ouvrir la colonne de droite)"""
         name = employee.get('name', '')
         if len(name) > 30:
             name = name[:27] + "..."
@@ -733,11 +730,11 @@ class MainWindow(QMainWindow):
         # Masquer le message d'instruction
         self.instruction_label.setVisible(False)
         
-        # Afficher la colonne de droite
-        self.right_column.setVisible(True)
+        # NE PAS afficher la colonne de droite pour garder l'interface rapide
+        # self.right_column.setVisible(True)  # SUPPRIMÉ
         
-        # Afficher le message de chargement
-        self.loading_label.setVisible(True)
+        # NE PAS afficher le message de chargement
+        # self.loading_label.setVisible(True)  # SUPPRIMÉ
     
     def show_status_message(self, message, success=None):
         """Affiche un message de statut temporaire"""
@@ -919,15 +916,37 @@ class MainWindow(QMainWindow):
         # Enregistrer le pointage IMMÉDIATEMENT au retrait du badge
         if self.current_employee:
             id_emp = int(self.current_employee['employee_id'].replace('EMP', '').lstrip('0'))
+            employee_name = self.current_employee.get('name', '').split()[0]  # Prénom uniquement
             logger.info(f"Badge retiré - enregistrement INSTANTANÉ du pointage pour employé {id_emp}")
             
             success, pointage_type, error_msg = self.save_pointage(id_emp)
             
             if success:
-                # Afficher "ENTRÉE enregistrée" ou "SORTIE enregistrée"
-                self.show_status_message(f"✓ {pointage_type} enregistrée", success=True)
+                # Afficher "ENTRÉE enregistrée pour [Prénom]" sur l'écran principal
+                self.instruction_label.setVisible(True)
+                self.instruction_label.setText(f"✓ {pointage_type} enregistrée\n{employee_name}")
+                self.instruction_label.setStyleSheet("""
+                    color: white;
+                    background-color: #27ae60;
+                    padding: 40px;
+                    border-radius: 15px;
+                    font-size: 32px;
+                    font-weight: bold;
+                """)
+                # Restaurer le message par défaut après 2 secondes
+                QTimer.singleShot(2000, self.reset_instruction_message)
             else:
-                self.show_status_message(f"❌ Erreur: {error_msg}", success=False)
+                self.instruction_label.setVisible(True)
+                self.instruction_label.setText(f"❌ Erreur\n{error_msg}")
+                self.instruction_label.setStyleSheet("""
+                    color: white;
+                    background-color: #e74c3c;
+                    padding: 40px;
+                    border-radius: 15px;
+                    font-size: 28px;
+                    font-weight: bold;
+                """)
+                QTimer.singleShot(3000, self.reset_instruction_message)
         
         self.is_card_present = False
         self.current_rfid = None
@@ -940,7 +959,7 @@ class MainWindow(QMainWindow):
             self.data_fetch_timer.stop()
             self.data_fetch_timer = None
         
-        # Masquer la colonne de droite
+        # La colonne de droite reste cachée (pas d'affichage de dashboard)
         self.right_column.setVisible(False)
         
         # Masquer les pointages
@@ -949,11 +968,7 @@ class MainWindow(QMainWindow):
         # Bouton Admin visible seulement s'il n'y a aucun employé rang 1
         self.admin_btn.setVisible(not self._has_rank1_employee())
         
-        # Restaurer le message d'instruction par défaut
-        self.reset_instruction_message()
-        self.instruction_label.setVisible(True)
-        
-        logger.info("Informations employé masquées")
+        logger.info("Pointage enregistré et interface réinitialisée")
         
     def show_error_message(self, message):
         """Affiche un message d'erreur temporaire"""
