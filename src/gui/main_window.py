@@ -67,6 +67,86 @@ class RFIDSignal(QObject):
     card_detected = pyqtSignal(str)
 
 
+class SyncWorker(QObject):
+    """Worker pour synchroniser les pointages en arrière-plan"""
+    sync_finished = pyqtSignal(int, int)  # (succès, erreurs)
+    
+    def __init__(self, db_manager, api_url, id_compte, api_key):
+        super().__init__()
+        self.db_manager = db_manager
+        self.api_url = api_url
+        self.id_compte = id_compte
+        self.api_key = api_key
+        self.running = True
+    
+    def sync_pointages(self):
+        """Synchronise les pointages non synchronisés avec l'API"""
+        if not self.running:
+            return
+        
+        unsynced = self.db_manager.get_unsynced_pointages()
+        
+        if not unsynced:
+            logger.debug("Aucun pointage à synchroniser")
+            return
+        
+        logger.info(f"Synchronisation de {len(unsynced)} pointage(s) vers l'API...")
+        
+        success_count = 0
+        error_count = 0
+        synced_ids = []
+        
+        for pointage in unsynced:
+            try:
+                # Convertir le timestamp
+                timestamp = datetime.fromisoformat(pointage['timestamp'])
+                date_str = timestamp.strftime("%Y-%m-%d")
+                heure_str = timestamp.strftime("%H:%M:%S")
+                
+                # Appeler l'API
+                url = f"{self.api_url}/api_save_pointage.php"
+                data = {
+                    'id_emp': int(pointage['employee_id']),
+                    'id_compte': self.id_compte,
+                    'date': date_str,
+                    'heure': heure_str
+                }
+                
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': self.api_key,
+                    'X-Account-ID': str(self.id_compte)
+                }
+                
+                response = requests.post(url, json=data, headers=headers, timeout=10, verify=False)
+                response.raise_for_status()
+                
+                result = response.json()
+                
+                if result.get('success'):
+                    synced_ids.append(pointage['id'])
+                    success_count += 1
+                    logger.debug(f"✓ Pointage {pointage['id']} synchronisé")
+                else:
+                    error_count += 1
+                    logger.warning(f"✗ Erreur API pour pointage {pointage['id']}: {result.get('error')}")
+                    
+            except Exception as e:
+                error_count += 1
+                logger.error(f"✗ Erreur sync pointage {pointage['id']}: {e}")
+        
+        # Marquer les pointages synchronisés
+        if synced_ids:
+            self.db_manager.mark_as_synced(synced_ids)
+            logger.info(f"✓ Synchronisation terminée: {success_count} succès, {error_count} erreurs")
+        
+        self.sync_finished.emit(success_count, error_count)
+    
+    def stop(self):
+        """Arrête le worker"""
+        self.running = False
+
+
 class MainWindow(QMainWindow):
     """Fenêtre principale moderne de l'application de timbrage"""
     
@@ -140,6 +220,15 @@ class MainWindow(QMainWindow):
         self.ephemeride_timer = QTimer()
         self.ephemeride_timer.timeout.connect(self.check_date_change)
         self.ephemeride_timer.start(60000)  # Vérifier toutes les minutes
+        
+        # Timer pour synchroniser les pointages toutes les 10 minutes
+        self.sync_worker = SyncWorker(self.db_manager, self.api_url, self.id_compte, self.api_key)
+        self.sync_timer = QTimer()
+        self.sync_timer.timeout.connect(self.sync_worker.sync_pointages)
+        self.sync_timer.start(600000)  # 10 minutes = 600000 ms
+        logger.info("Synchronisation automatique activée (toutes les 10 minutes)")
+        # Première synchronisation après 30 secondes
+        QTimer.singleShot(30000, self.sync_worker.sync_pointages)
         
     def init_ui(self):
         """Initialise l'interface utilisateur moderne"""
@@ -587,23 +676,13 @@ class MainWindow(QMainWindow):
         self.current_rfid = rfid_code
         self.current_employee = employee
         self.is_card_present = True
-        self.badge_detection_time = datetime.now()
-        self.consultation_mode = False
-        self.pointage_done = False  # Flag pour savoir si le pointage a déjà été fait
         
         # Afficher le nom immédiatement
         self.show_employee_info(employee)
         
-        # Timer pour détecter si badge maintenu 5 secondes = mode consultation
-        id_emp = int(employee['employee_id'].replace('EMP', '').lstrip('0'))
-        
-        self.pointage_timer = QTimer()
-        self.pointage_timer.setSingleShot(True)
-        self.pointage_timer.timeout.connect(lambda: self.activate_consultation_mode(id_emp))
-        self.pointage_timer.start(5000)  # 5 secondes
-        
-        # Message: l'utilisateur peut retirer pour pointer ou maintenir pour consulter
-        self.show_status_message("👆 Retirez pour pointer | Maintenez 5s pour consulter")
+        # PAS D'ATTENTE - Action immédiate (sera faite au retrait du badge)
+        # Message simple
+        self.show_status_message("👋 Bonjour " + employee.get('name', '').split()[0])
         
         # Charger le dashboard (reste à faire / temps réalisé) dans tous les cas : succès ou erreur (ex. délai 60 s)
         if self.delayed_fetch_timer:
@@ -616,98 +695,43 @@ class MainWindow(QMainWindow):
         # Réinitialiser le flag après un court délai
         QTimer.singleShot(3000, lambda: setattr(self, 'is_processing', False))
     
-    def activate_consultation_mode(self, id_emp):
-        """
-        Appelé après 5 secondes si le badge est toujours présent.
-        Active le mode consultation (affiche les infos SANS enregistrer de pointage)
-        """
-        if not self.is_card_present or not self.current_employee:
-            # Badge déjà retiré
-            return
-        
-        # Badge toujours présent après 5 secondes = MODE CONSULTATION
-        self.consultation_mode = True
-        self.pointage_done = True  # Marquer comme "traité" pour éviter le pointage au retrait
-        logger.info(f"Mode consultation activé pour employé {id_emp} (badge maintenu 5s)")
-        
-        # Afficher message de consultation
-        self.show_status_message("👀 Consultation - Aucun pointage enregistré", success=None)
-        
-        # Charger et afficher le dashboard
-        self.fetch_employee_dashboard(id_emp)
-        
-        # Réinitialiser le flag
-        self.is_processing = False
-    
     def save_pointage(self, id_emp):
-        """Enregistre un pointage via l'API ET en local (retourne (True, None) si succès ou (False, message_erreur))"""
+        """
+        Enregistre un pointage en LOCAL uniquement (instantané)
+        La synchronisation avec l'API se fera en arrière-plan toutes les 10 minutes
+        
+        Returns:
+            (True, type_pointage, None) si succès
+            (False, None, message_erreur) si erreur
+        """
         try:
-            now = datetime.now()
-            date_str = now.strftime("%Y-%m-%d")
-            heure_str = now.strftime("%H:%M:%S")
+            # Déterminer le type (ENTREE/SORTIE) en fonction du dernier pointage
+            last_pointage = self.db_manager.get_last_pointage(str(id_emp))
             
-            # 1. Appeler l'API pour enregistrer le pointage dans MySQL
-            url = f"{self.api_url}/api_save_pointage.php"
-            data = {
-                'id_emp': id_emp,
-                'id_compte': self.id_compte,
-                'date': date_str,
-                'heure': heure_str
-            }
-            
-            response = requests.post(url, json=data, headers=self.get_api_headers(), timeout=5, verify=False)
-            response.raise_for_status()
-            
-            result = response.json()
-            
-            if result.get('success'):
-                logger.info(f"Pointage MySQL enregistré pour l'employé {id_emp} à {heure_str}")
-                
-                # 2. Enregistrer aussi en local dans SQLite
-                try:
-                    # Déterminer le type (ENTREE/SORTIE) en fonction du dernier pointage
-                    last_pointage = self.db_manager.get_last_pointage(str(id_emp))
-                    
-                    if last_pointage and last_pointage.get('type') == 'ENTREE':
-                        pointage_type = 'SORTIE'
-                    else:
-                        pointage_type = 'ENTREE'
-                    
-                    # Enregistrer dans SQLite
-                    employee_name = self.current_employee.get('name', 'Inconnu')
-                    rfid_code = self.current_rfid
-                    
-                    local_id = self.db_manager.add_pointage(
-                        employee_id=str(id_emp),
-                        employee_name=employee_name,
-                        rfid=rfid_code,
-                        pointage_type=pointage_type
-                    )
-                    
-                    logger.info(f"Pointage SQLite enregistré (ID: {local_id}, Type: {pointage_type})")
-                    
-                except Exception as e:
-                    logger.error(f"Erreur lors de l'enregistrement SQLite: {e}")
-                    # Ne pas bloquer si l'enregistrement local échoue
-                
-                return True, None
+            if last_pointage and last_pointage.get('type') == 'ENTREE':
+                pointage_type = 'SORTIE'
             else:
-                error = result.get('error', 'Erreur inconnue')
-                logger.error(f"Erreur API pointage: {error}")
-                return False, f"API: {error}"
+                pointage_type = 'ENTREE'
             
-        except requests.exceptions.Timeout:
-            error = "Délai d'attente dépassé (serveur trop lent)"
-            logger.error(f"Timeout lors de l'enregistrement du pointage: {error}")
-            return False, error
-        except requests.exceptions.ConnectionError:
-            error = "Impossible de se connecter au serveur"
-            logger.error(f"Erreur de connexion: {error}")
-            return False, error
+            # Enregistrer dans SQLite UNIQUEMENT (instantané, pas d'appel API)
+            employee_name = self.current_employee.get('name', 'Inconnu')
+            rfid_code = self.current_rfid
+            
+            local_id = self.db_manager.add_pointage(
+                employee_id=str(id_emp),
+                employee_name=employee_name,
+                rfid=rfid_code,
+                pointage_type=pointage_type
+            )
+            
+            logger.info(f"Pointage LOCAL enregistré (ID: {local_id}, Type: {pointage_type}) - Sync en attente")
+            
+            return True, pointage_type, None
+            
         except Exception as e:
             error = str(e)
-            logger.error(f"Erreur lors de l'enregistrement du pointage: {error}")
-            return False, f"Erreur système: {error}"
+            logger.error(f"Erreur lors de l'enregistrement LOCAL du pointage: {error}")
+            return False, None, f"Erreur système: {error}"
     
     def show_employee_info(self, employee):
         """Affiche les informations de base de l'employé"""
@@ -901,24 +925,17 @@ class MainWindow(QMainWindow):
         logger.debug("Données de l'employé précédent effacées")
     
     def hide_employee_info(self):
-        """Cache les informations de l'employé quand la carte est retirée"""
-        # Si le badge est retiré ET qu'aucun pointage n'a été fait (pas en mode consultation)
-        # = Enregistrer le pointage IMMÉDIATEMENT (badge retiré rapidement)
-        if self.current_employee and not getattr(self, 'pointage_done', False):
-            # Annuler le timer de consultation
-            if hasattr(self, 'pointage_timer') and self.pointage_timer.isActive():
-                self.pointage_timer.stop()
-            
+        """Cache les informations de l'employé quand la carte est retirée ET enregistre le pointage"""
+        # Enregistrer le pointage IMMÉDIATEMENT au retrait du badge
+        if self.current_employee:
             id_emp = int(self.current_employee['employee_id'].replace('EMP', '').lstrip('0'))
-            logger.info(f"Badge retiré rapidement - enregistrement INSTANTANÉ du pointage pour employé {id_emp}")
+            logger.info(f"Badge retiré - enregistrement INSTANTANÉ du pointage pour employé {id_emp}")
             
             success, pointage_type, error_msg = self.save_pointage(id_emp)
             
             if success:
                 # Afficher "ENTRÉE enregistrée" ou "SORTIE enregistrée"
                 self.show_status_message(f"✓ {pointage_type} enregistrée", success=True)
-                # Charger le dashboard en arrière-plan (optionnel, après 2s)
-                QTimer.singleShot(2000, lambda: self.fetch_employee_dashboard(id_emp) if self.is_card_present else None)
             else:
                 self.show_status_message(f"❌ Erreur: {error_msg}", success=False)
         
@@ -927,8 +944,6 @@ class MainWindow(QMainWindow):
         self.current_employee = None
         self.dashboard_data = None
         self.is_processing = False
-        self.consultation_mode = False
-        self.pointage_done = False
         
         # Arrêter les timers
         if self.delayed_fetch_timer:
@@ -938,9 +953,6 @@ class MainWindow(QMainWindow):
         if self.data_fetch_timer:
             self.data_fetch_timer.stop()
             self.data_fetch_timer = None
-        
-        if hasattr(self, 'pointage_timer'):
-            self.pointage_timer.stop()
         
         # Masquer la colonne de droite
         self.right_column.setVisible(False)

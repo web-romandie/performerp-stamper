@@ -35,9 +35,18 @@ class DatabaseManager:
                 timestamp DATETIME NOT NULL,
                 type TEXT NOT NULL,
                 exported INTEGER DEFAULT 0,
+                synced INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Ajouter la colonne synced si elle n'existe pas (migration)
+        try:
+            cursor.execute("ALTER TABLE pointages ADD COLUMN synced INTEGER DEFAULT 0")
+            logger.info("Colonne 'synced' ajoutée à la table pointages")
+        except sqlite3.OperationalError:
+            # La colonne existe déjà
+            pass
         
         # Index pour améliorer les performances
         cursor.execute("""
@@ -48,6 +57,9 @@ class DatabaseManager:
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_exported ON pointages(exported)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_synced ON pointages(synced)
         """)
         
         conn.commit()
@@ -214,6 +226,64 @@ class DatabaseManager:
         conn.close()
         
         logger.info(f"{len(pointage_ids)} pointages marqués comme exportés")
+    
+    def get_unsynced_pointages(self) -> List[Dict]:
+        """
+        Récupère tous les pointages non synchronisés avec l'API
+        
+        Returns:
+            Liste de dictionnaires avec les pointages
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, employee_id, employee_name, rfid, timestamp, type
+            FROM pointages
+            WHERE synced = 0
+            ORDER BY timestamp
+        """)
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        pointages = []
+        for row in rows:
+            pointages.append({
+                'id': row[0],
+                'employee_id': row[1],
+                'employee_name': row[2],
+                'rfid': row[3],
+                'timestamp': row[4],
+                'type': row[5]
+            })
+        
+        return pointages
+    
+    def mark_as_synced(self, pointage_ids: List[int]):
+        """
+        Marque des pointages comme synchronisés avec l'API
+        
+        Args:
+            pointage_ids: Liste des IDs de pointages à marquer
+        """
+        if not pointage_ids:
+            return
+        
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        placeholders = ','.join(['?'] * len(pointage_ids))
+        cursor.execute(f"""
+            UPDATE pointages
+            SET synced = 1
+            WHERE id IN ({placeholders})
+        """, pointage_ids)
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"{len(pointage_ids)} pointages marqués comme synchronisés")
     
     def get_employee_hours(self, employee_id: str, start_date: date, end_date: date) -> Dict:
         """
