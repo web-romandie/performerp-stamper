@@ -587,24 +587,23 @@ class MainWindow(QMainWindow):
         self.current_rfid = rfid_code
         self.current_employee = employee
         self.is_card_present = True
-        self.badge_detection_time = datetime.now()  # Enregistrer l'heure de détection
+        self.badge_detection_time = datetime.now()
         self.consultation_mode = False
+        self.pointage_done = False  # Flag pour savoir si le pointage a déjà été fait
         
         # Afficher le nom immédiatement
         self.show_employee_info(employee)
         
-        # Timer pour attendre 5 secondes et vérifier si badge toujours présent
-        # Si oui = mode consultation (pas de pointage)
-        # Si non = badge retiré rapidement = pointage normal
+        # Timer pour détecter si badge maintenu 5 secondes = mode consultation
         id_emp = int(employee['employee_id'].replace('EMP', '').lstrip('0'))
         
         self.pointage_timer = QTimer()
         self.pointage_timer.setSingleShot(True)
-        self.pointage_timer.timeout.connect(lambda: self.process_badge_action(id_emp))
-        self.pointage_timer.start(5000)  # Attendre 5 secondes
+        self.pointage_timer.timeout.connect(lambda: self.activate_consultation_mode(id_emp))
+        self.pointage_timer.start(5000)  # 5 secondes
         
-        # Afficher un message d'attente
-        self.show_status_message("⏳ Maintenez pour consulter | Retirez pour pointer")
+        # Message: l'utilisateur peut retirer pour pointer ou maintenir pour consulter
+        self.show_status_message("👆 Retirez pour pointer | Maintenez 5s pour consulter")
         
         # Charger le dashboard (reste à faire / temps réalisé) dans tous les cas : succès ou erreur (ex. délai 60 s)
         if self.delayed_fetch_timer:
@@ -617,22 +616,22 @@ class MainWindow(QMainWindow):
         # Réinitialiser le flag après un court délai
         QTimer.singleShot(3000, lambda: setattr(self, 'is_processing', False))
     
-    def process_badge_action(self, id_emp):
+    def activate_consultation_mode(self, id_emp):
         """
-        Appelé après 5 secondes de maintien du badge.
-        Si le badge est toujours présent = mode consultation (pas de pointage)
-        Si le badge a été retiré = ce code ne sera jamais appelé (pointage déjà fait dans hide_employee_info)
+        Appelé après 5 secondes si le badge est toujours présent.
+        Active le mode consultation (affiche les infos SANS enregistrer de pointage)
         """
         if not self.is_card_present or not self.current_employee:
-            # Badge déjà retiré, rien à faire
+            # Badge déjà retiré
             return
         
         # Badge toujours présent après 5 secondes = MODE CONSULTATION
         self.consultation_mode = True
+        self.pointage_done = True  # Marquer comme "traité" pour éviter le pointage au retrait
         logger.info(f"Mode consultation activé pour employé {id_emp} (badge maintenu 5s)")
         
         # Afficher message de consultation
-        self.show_status_message("👀 Mode consultation - Pas de pointage enregistré", success=None)
+        self.show_status_message("👀 Consultation - Aucun pointage enregistré", success=None)
         
         # Charger et afficher le dashboard
         self.fetch_employee_dashboard(id_emp)
@@ -903,34 +902,33 @@ class MainWindow(QMainWindow):
     
     def hide_employee_info(self):
         """Cache les informations de l'employé quand la carte est retirée"""
-        # Si le badge est retiré AVANT 5 secondes ET qu'on n'est pas en mode consultation
-        # = Enregistrer le pointage normal
-        if hasattr(self, 'pointage_timer') and self.pointage_timer.isActive() and not self.consultation_mode:
+        # Si le badge est retiré ET qu'aucun pointage n'a été fait (pas en mode consultation)
+        # = Enregistrer le pointage IMMÉDIATEMENT (badge retiré rapidement)
+        if self.current_employee and not getattr(self, 'pointage_done', False):
             # Annuler le timer de consultation
-            self.pointage_timer.stop()
+            if hasattr(self, 'pointage_timer') and self.pointage_timer.isActive():
+                self.pointage_timer.stop()
             
-            # Enregistrer le pointage (badge retiré rapidement)
-            if self.current_employee:
-                id_emp = int(self.current_employee['employee_id'].replace('EMP', '').lstrip('0'))
-                logger.info(f"Badge retiré rapidement - enregistrement du pointage pour employé {id_emp}")
-                
-                # Afficher "Enregistrement en cours..."
-                self.show_status_message("⏳ Enregistrement en cours...")
-                
-                success, pointage_type, error_msg = self.save_pointage(id_emp)
-                
-                if success:
-                    # Afficher "ENTRÉE enregistrée" ou "SORTIE enregistrée"
-                    self.show_status_message(f"✓ {pointage_type} enregistrée", success=True)
-                else:
-                    self.show_status_message(f"❌ Erreur d'enregistrement\n{error_msg}", success=False)
+            id_emp = int(self.current_employee['employee_id'].replace('EMP', '').lstrip('0'))
+            logger.info(f"Badge retiré rapidement - enregistrement INSTANTANÉ du pointage pour employé {id_emp}")
+            
+            success, pointage_type, error_msg = self.save_pointage(id_emp)
+            
+            if success:
+                # Afficher "ENTRÉE enregistrée" ou "SORTIE enregistrée"
+                self.show_status_message(f"✓ {pointage_type} enregistrée", success=True)
+                # Charger le dashboard en arrière-plan (optionnel, après 2s)
+                QTimer.singleShot(2000, lambda: self.fetch_employee_dashboard(id_emp) if self.is_card_present else None)
+            else:
+                self.show_status_message(f"❌ Erreur: {error_msg}", success=False)
         
         self.is_card_present = False
         self.current_rfid = None
         self.current_employee = None
         self.dashboard_data = None
-        self.is_processing = False  # Réinitialiser le flag de traitement
-        self.consultation_mode = False  # Réinitialiser le mode consultation
+        self.is_processing = False
+        self.consultation_mode = False
+        self.pointage_done = False
         
         # Arrêter les timers
         if self.delayed_fetch_timer:
