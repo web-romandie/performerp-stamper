@@ -182,7 +182,6 @@ class MainWindow(QMainWindow):
         self.is_card_present = False
         self.dashboard_data = None
         self.data_fetch_timer = None
-        self.delayed_fetch_timer = None  # Timer pour le chargement différé
         self.is_processing = False  # Flag pour éviter les détections multiples
         self.consultation_mode = False  # Mode consultation (badge maintenu 5s)
         self.badge_detection_time = None  # Timestamp de la détection du badge
@@ -680,17 +679,8 @@ class MainWindow(QMainWindow):
         # Afficher le nom immédiatement
         self.show_employee_info(employee)
         
-        # PAS D'ATTENTE - Action immédiate (sera faite au retrait du badge)
-        # Message simple
+        # Message simple - le pointage sera fait au retrait du badge
         self.show_status_message("👋 Bonjour " + employee.get('name', '').split()[0])
-        
-        # Charger le dashboard (reste à faire / temps réalisé) dans tous les cas : succès ou erreur (ex. délai 60 s)
-        if self.delayed_fetch_timer:
-            self.delayed_fetch_timer.stop()
-        self.delayed_fetch_timer = QTimer()
-        self.delayed_fetch_timer.setSingleShot(True)
-        self.delayed_fetch_timer.timeout.connect(lambda: self.fetch_employee_dashboard(id_emp))
-        self.delayed_fetch_timer.start(2000)
         
         # Réinitialiser le flag après un court délai
         QTimer.singleShot(3000, lambda: setattr(self, 'is_processing', False))
@@ -945,11 +935,7 @@ class MainWindow(QMainWindow):
         self.dashboard_data = None
         self.is_processing = False
         
-        # Arrêter les timers
-        if self.delayed_fetch_timer:
-            self.delayed_fetch_timer.stop()
-            self.delayed_fetch_timer = None
-        
+        # Arrêter le timer de fetch de données s'il existe
         if self.data_fetch_timer:
             self.data_fetch_timer.stop()
             self.data_fetch_timer = None
