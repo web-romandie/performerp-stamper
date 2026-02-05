@@ -6,7 +6,7 @@ Permet d'associer un badge RFID à un employé via l'API du site web
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QComboBox, QLineEdit, QTextEdit,
-    QGroupBox, QMessageBox, QFrame
+    QGroupBox, QMessageBox, QFrame, QListWidget, QListWidgetItem
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
@@ -86,15 +86,37 @@ class RFIDConfigPanel(QWidget):
         employee_group = QGroupBox("Sélection de l'employé")
         employee_layout = QVBoxLayout()
         
-        self.employee_combo = QComboBox()
-        self.employee_combo.setEnabled(False)
-        self.employee_combo.currentIndexChanged.connect(self.on_employee_selected)
-        employee_layout.addWidget(QLabel("Employé:"))
-        employee_layout.addWidget(self.employee_combo)
+        # Liste des employés (remplace le QComboBox pour écran tactile)
+        employee_layout.addWidget(QLabel("Sélectionnez un employé:"))
+        self.employee_list = QListWidget()
+        self.employee_list.setEnabled(False)
+        self.employee_list.itemClicked.connect(self.on_employee_selected)
+        # Style pour rendre les items plus grands et tactiles
+        self.employee_list.setStyleSheet("""
+            QListWidget {
+                font-size: 14px;
+                border: 2px solid #ccc;
+                border-radius: 5px;
+            }
+            QListWidget::item {
+                padding: 15px;
+                border-bottom: 1px solid #eee;
+            }
+            QListWidget::item:selected {
+                background-color: #0078d4;
+                color: white;
+            }
+            QListWidget::item:hover {
+                background-color: #e6f2ff;
+            }
+        """)
+        self.employee_list.setMinimumHeight(200)
+        employee_layout.addWidget(self.employee_list)
         
         # Info sur l'employé sélectionné
         self.employee_info = QLabel("Aucun employé sélectionné")
-        self.employee_info.setStyleSheet("color: gray; font-style: italic;")
+        self.employee_info.setStyleSheet("color: gray; font-style: italic; padding: 10px;")
+        self.employee_info.setWordWrap(True)
         employee_layout.addWidget(self.employee_info)
         
         employee_group.setLayout(employee_layout)
@@ -239,15 +261,16 @@ class RFIDConfigPanel(QWidget):
             
             if data.get('success'):
                 self.employees = data.get('employees', [])
-                self.employee_combo.clear()
-                self.employee_combo.addItem("-- Sélectionnez un employé --", None)
+                self.employee_list.clear()
                 
                 for emp in self.employees:
                     rfid_status = "✓" if emp.get('has_rfid') else "✗"
                     label = f"{emp['nom']} {emp['prenom']} [{rfid_status}]"
-                    self.employee_combo.addItem(label, emp)
+                    item = QListWidgetItem(label)
+                    item.setData(Qt.UserRole, emp)  # Stocker l'employé dans l'item
+                    self.employee_list.addItem(item)
                 
-                self.employee_combo.setEnabled(True)
+                self.employee_list.setEnabled(True)
                 self.log(f"✓ {len(self.employees)} employés chargés")
                 
             else:
@@ -264,9 +287,16 @@ class RFIDConfigPanel(QWidget):
         finally:
             self.load_employees_btn.setEnabled(True)
             
-    def on_employee_selected(self, index):
+    def on_employee_selected(self, item):
         """Appelé quand un employé est sélectionné"""
-        employee = self.employee_combo.currentData()
+        if not item:
+            self.selected_employee = None
+            self.employee_info.setText("Aucun employé sélectionné")
+            self.employee_info.setStyleSheet("color: gray; font-style: italic; padding: 10px;")
+            self.scan_btn.setEnabled(False)
+            return
+        
+        employee = item.data(Qt.UserRole)
         
         if employee:
             self.selected_employee = employee
@@ -275,12 +305,12 @@ class RFIDConfigPanel(QWidget):
                 info += f"\n⚠️ Badge RFID déjà configuré: {employee.get('rfid')}"
                 info += "\n(Sera remplacé si vous scannez un nouveau badge)"
             self.employee_info.setText(info)
-            self.employee_info.setStyleSheet("color: black;")
+            self.employee_info.setStyleSheet("color: black; padding: 10px; background-color: #e6f2ff; border-radius: 5px;")
             self.scan_btn.setEnabled(self.rfid_reader and self.rfid_reader.is_connected())
         else:
             self.selected_employee = None
             self.employee_info.setText("Aucun employé sélectionné")
-            self.employee_info.setStyleSheet("color: gray; font-style: italic;")
+            self.employee_info.setStyleSheet("color: gray; font-style: italic; padding: 10px;")
             self.scan_btn.setEnabled(False)
             
     def start_scanning(self):
@@ -377,6 +407,10 @@ class RFIDConfigPanel(QWidget):
                 
                 # Réinitialiser
                 self.rfid_display.clear()
+                self.employee_list.clearSelection()
+                self.selected_employee = None
+                self.employee_info.setText("Aucun employé sélectionné")
+                self.employee_info.setStyleSheet("color: gray; font-style: italic; padding: 10px;")
                 self.load_employees()  # Recharger pour mettre à jour les statuts
                 
             else:
