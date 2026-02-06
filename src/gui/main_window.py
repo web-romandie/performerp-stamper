@@ -676,11 +676,48 @@ class MainWindow(QMainWindow):
         self.current_employee = employee
         self.is_card_present = True
         
-        # NE PAS afficher d'infos pour rester rapide
-        # Le message apparaîtra au retrait du badge
+        # ENREGISTRER LE POINTAGE IMMÉDIATEMENT (une seule fois à la présentation)
+        id_emp = int(employee['employee_id'].replace('EMP', '').lstrip('0'))
+        employee_name = employee.get('name', '').split()[0]  # Prénom uniquement
         
-        # Réinitialiser le flag après un court délai
-        QTimer.singleShot(3000, lambda: setattr(self, 'is_processing', False))
+        logger.info(f"Badge présenté - enregistrement IMMÉDIAT du pointage pour {employee_name}")
+        
+        success, pointage_type, error_msg = self.save_pointage(id_emp)
+        
+        if success:
+            # Afficher "ENTRÉE enregistrée" immédiatement
+            self.instruction_label.setVisible(True)
+            self.instruction_label.setText(f"✓ {pointage_type} enregistrée\n{employee_name}")
+            self.instruction_label.setStyleSheet("""
+                color: white;
+                background-color: #27ae60;
+                padding: 40px;
+                border-radius: 15px;
+                font-size: 32px;
+                font-weight: bold;
+            """)
+            logger.info(f"Pointage {pointage_type} enregistré avec succès")
+            
+            # Restaurer le message par défaut après 3 secondes
+            QTimer.singleShot(3000, self.reset_instruction_message)
+        else:
+            # Afficher l'erreur
+            self.instruction_label.setVisible(True)
+            self.instruction_label.setText(f"❌ Erreur\n{error_msg}")
+            self.instruction_label.setStyleSheet("""
+                color: white;
+                background-color: #e74c3c;
+                padding: 40px;
+                border-radius: 15px;
+                font-size: 28px;
+                font-weight: bold;
+            """)
+            logger.error(f"Erreur lors du pointage: {error_msg}")
+            
+            # Restaurer le message par défaut après 4 secondes
+            QTimer.singleShot(4000, self.reset_instruction_message)
+        
+        self.is_processing = False
     
     def save_pointage(self, id_emp):
         """
@@ -912,41 +949,8 @@ class MainWindow(QMainWindow):
         logger.debug("Données de l'employé précédent effacées")
     
     def hide_employee_info(self):
-        """Cache les informations de l'employé quand la carte est retirée ET enregistre le pointage"""
-        # Enregistrer le pointage IMMÉDIATEMENT au retrait du badge
-        if self.current_employee:
-            id_emp = int(self.current_employee['employee_id'].replace('EMP', '').lstrip('0'))
-            employee_name = self.current_employee.get('name', '').split()[0]  # Prénom uniquement
-            logger.info(f"Badge retiré - enregistrement INSTANTANÉ du pointage pour employé {id_emp}")
-            
-            success, pointage_type, error_msg = self.save_pointage(id_emp)
-            
-            if success:
-                # Afficher "ENTRÉE enregistrée pour [Prénom]" sur l'écran principal
-                self.instruction_label.setVisible(True)
-                self.instruction_label.setText(f"✓ {pointage_type} enregistrée\n{employee_name}")
-                self.instruction_label.setStyleSheet("""
-                    color: white;
-                    background-color: #27ae60;
-                    padding: 40px;
-                    border-radius: 15px;
-                    font-size: 32px;
-                    font-weight: bold;
-                """)
-                # Restaurer le message par défaut après 2 secondes
-                QTimer.singleShot(2000, self.reset_instruction_message)
-            else:
-                self.instruction_label.setVisible(True)
-                self.instruction_label.setText(f"❌ Erreur\n{error_msg}")
-                self.instruction_label.setStyleSheet("""
-                    color: white;
-                    background-color: #e74c3c;
-                    padding: 40px;
-                    border-radius: 15px;
-                    font-size: 28px;
-                    font-weight: bold;
-                """)
-                QTimer.singleShot(3000, self.reset_instruction_message)
+        """Cache les informations de l'employé quand la carte est retirée (le pointage est déjà enregistré)"""
+        logger.info("Badge retiré - nettoyage de l'interface")
         
         self.is_card_present = False
         self.current_rfid = None
@@ -968,7 +972,7 @@ class MainWindow(QMainWindow):
         # Bouton Admin visible seulement s'il n'y a aucun employé rang 1
         self.admin_btn.setVisible(not self._has_rank1_employee())
         
-        logger.info("Pointage enregistré et interface réinitialisée")
+        logger.info("Interface réinitialisée après retrait du badge")
         
     def show_error_message(self, message):
         """Affiche un message d'erreur temporaire"""
