@@ -730,14 +730,29 @@ class MainWindow(QMainWindow):
         Enregistre un pointage en LOCAL uniquement (instantané)
         La synchronisation avec l'API se fera en arrière-plan toutes les 10 minutes
         
+        Protection anti-doublon: Empêche 2 pointages du même employé en moins de 5 secondes
+        
         Returns:
             (True, type_pointage, None) si succès
             (False, None, message_erreur) si erreur
         """
         try:
-            # Déterminer le type (ENTREE/SORTIE) en fonction du dernier pointage
+            from datetime import datetime, timedelta
+            
+            # Récupérer le dernier pointage pour déterminer le type ET vérifier le délai
             last_pointage = self.db_manager.get_last_pointage(str(id_emp))
             
+            # PROTECTION ANTI-DOUBLON: Vérifier qu'au moins 5 secondes se sont écoulées
+            if last_pointage:
+                last_timestamp = datetime.fromisoformat(last_pointage['timestamp'])
+                time_diff = (datetime.now() - last_timestamp).total_seconds()
+                
+                if time_diff < 5.0:
+                    # Trop rapide! Refuser le pointage
+                    logger.warning(f"Pointage refusé: délai trop court ({time_diff:.1f}s < 5s) pour employé {id_emp}")
+                    return False, None, f"Veuillez attendre {int(5 - time_diff)}s avant de pointer à nouveau"
+            
+            # Déterminer le type (ENTREE/SORTIE) en fonction du dernier pointage
             if last_pointage and last_pointage.get('type') == 'ENTREE':
                 pointage_type = 'SORTIE'
             else:
