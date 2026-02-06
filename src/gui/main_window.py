@@ -901,7 +901,7 @@ class MainWindow(QMainWindow):
         
         # Vérifier si le dernier scan de cette carte est récent
         # Le lecteur RFID scanne toutes les ~300ms quand une carte est présente
-        # Si pas de lecture depuis 800ms, la carte a été retirée (réactivité maximale)
+        # Délai de 2 secondes pour éviter les fausses détections de retrait
         try:
             from time import time
             current_time = time()
@@ -910,9 +910,9 @@ class MainWindow(QMainWindow):
             if hasattr(self.rfid_reader, 'last_read_time'):
                 time_since_last_read = current_time - self.rfid_reader.last_read_time
                 
-                # Si pas de lecture depuis 800ms, la carte a été retirée
-                # (le lecteur scanne toutes les 300ms, donc 800ms = 2-3 tentatives manquées)
-                if time_since_last_read > 0.8:
+                # Si pas de lecture depuis 2 secondes, la carte a été retirée
+                # Délai plus long pour tolérer les micro-interruptions du lecteur
+                if time_since_last_read > 2.0:
                     logger.info(f"Badge retiré (pas de lecture depuis {time_since_last_read:.2f}s)")
                     self.hide_employee_info()
         except Exception as e:
