@@ -706,8 +706,11 @@ class MainWindow(QMainWindow):
             
             # Restaurer le message par défaut après 3 secondes
             QTimer.singleShot(3000, self.reset_instruction_message)
+        elif "attendre" in error_msg.lower():
+            # Erreur de délai (< 5 secondes) → Ne rien afficher, ignorer silencieusement
+            logger.info(f"Pointage ignoré: {error_msg}")
         else:
-            # Afficher l'erreur
+            # Autres erreurs (badge inconnu, erreur système, etc.) → Afficher
             self.instruction_label.setVisible(True)
             self.instruction_label.setText(f"❌ Erreur\n{error_msg}")
             self.instruction_label.setStyleSheet("""
