@@ -685,12 +685,18 @@ class MainWindow(QMainWindow):
         success, pointage_type, error_msg = self.save_pointage(id_emp)
         
         if success:
-            # Afficher "ENTRÉE enregistrée" immédiatement
+            # Couleur différente selon le type de pointage
+            if pointage_type == "ENTREE":
+                bg_color = "#27ae60"  # Vert pour ENTRÉE
+            else:
+                bg_color = "#3498db"  # Bleu pour SORTIE
+            
+            # Afficher le message avec la couleur appropriée
             self.instruction_label.setVisible(True)
             self.instruction_label.setText(f"✓ {pointage_type} enregistrée\n{employee_name}")
-            self.instruction_label.setStyleSheet("""
+            self.instruction_label.setStyleSheet(f"""
                 color: white;
-                background-color: #27ae60;
+                background-color: {bg_color};
                 padding: 40px;
                 border-radius: 15px;
                 font-size: 32px;
