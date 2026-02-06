@@ -38,29 +38,23 @@ if [ $? -ne 0 ]; then
     pip install pyscard
 fi
 
-# Détecter le type de lecteur
-echo "Détection du lecteur RFID..."
-python3 diagnostic_lecteur.py > /tmp/rfid_detection.txt 2>&1
-
 # Forcer l'utilisation de X11 au lieu de Wayland pour éviter les avertissements
 export QT_QPA_PLATFORM=xcb
 
-if grep -q "PC/SC" /tmp/rfid_detection.txt; then
-    echo "✓ Lecteur PC/SC détecté (ACR1252)"
+# Vérifier si pcscd est actif (service PC/SC)
+if systemctl is-active --quiet pcscd; then
+    echo "✓ Lecteur PC/SC détecté (service pcscd actif)"
     echo "Lancement avec main_pcsc_auto.py"
     echo ""
     python3 main_pcsc_auto.py
-elif grep -q "série" /tmp/rfid_detection.txt; then
-    echo "✓ Lecteur série détecté"
-    echo "Lancement avec main.py"
-    echo ""
-    python3 main.py
 else
-    echo "⚠️  Aucun lecteur détecté"
-    echo "Vérifiez que votre lecteur RFID est bien connecté"
+    echo "⚠️  Service PC/SC (pcscd) non actif"
+    echo "Démarrage du service..."
+    sudo systemctl start pcscd
+    sleep 2
+    echo "✓ Lancement de l'application"
     echo ""
-    cat /tmp/rfid_detection.txt
-    exit 1
+    python3 main_pcsc_auto.py
 fi
 
 
