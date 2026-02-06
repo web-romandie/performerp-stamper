@@ -146,7 +146,7 @@ class DatabaseManager:
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT id, employee_id, employee_name, rfid, timestamp, type, exported
+            SELECT id, employee_id, employee_name, rfid, timestamp, type, exported, synced
             FROM pointages
             WHERE DATE(timestamp) BETWEEN ? AND ?
             ORDER BY timestamp
@@ -164,7 +164,8 @@ class DatabaseManager:
                 'rfid': row[3],
                 'timestamp': row[4],
                 'type': row[5],
-                'exported': row[6]
+                'exported': row[6],
+                'synced': row[7]
             })
         
         return pointages

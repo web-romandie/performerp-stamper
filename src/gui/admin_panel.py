@@ -137,9 +137,9 @@ class AdminPanel(QMainWindow):
         
         # Table des pointages
         self.pointages_table = QTableWidget()
-        self.pointages_table.setColumnCount(6)
+        self.pointages_table.setColumnCount(7)
         self.pointages_table.setHorizontalHeaderLabels([
-            "Date/Heure", "Matricule", "Nom", "RFID", "Type", "Exporté"
+            "Date/Heure", "Matricule", "Nom", "RFID", "Type", "Synchronisé", "Exporté"
         ])
         self.pointages_table.horizontalHeader().setStretchLastSection(True)
         self.pointages_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -243,7 +243,18 @@ class AdminPanel(QMainWindow):
             self.pointages_table.setItem(i, 2, QTableWidgetItem(pointage['employee_name']))
             self.pointages_table.setItem(i, 3, QTableWidgetItem(pointage['rfid']))
             self.pointages_table.setItem(i, 4, QTableWidgetItem(pointage['type']))
-            self.pointages_table.setItem(i, 5, QTableWidgetItem('Oui' if pointage['exported'] else 'Non'))
+            
+            # Colonne Synchronisé (état de sync vers l'API)
+            synced_status = 'Oui' if pointage.get('synced', 0) else 'Non'
+            synced_item = QTableWidgetItem(synced_status)
+            if pointage.get('synced', 0):
+                synced_item.setForeground(Qt.darkGreen)
+            else:
+                synced_item.setForeground(Qt.darkRed)
+            self.pointages_table.setItem(i, 5, synced_item)
+            
+            # Colonne Exporté (état d'export CSV/FTP)
+            self.pointages_table.setItem(i, 6, QTableWidgetItem('Oui' if pointage['exported'] else 'Non'))
     
     def generate_daily_report(self):
         """Génère un rapport journalier"""
