@@ -5,9 +5,9 @@ from datetime import date, datetime
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QPushButton, QTableWidget, QTableWidgetItem,
                              QDateEdit, QMessageBox, QTabWidget, QTextEdit, QComboBox,
-                             QLineEdit, QGroupBox, QFrame)
+                             QLineEdit, QGroupBox, QFrame, QScrollArea, QGridLayout)
 from PyQt5.QtCore import Qt, QDate, QTimer, pyqtSignal, QObject
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QColor
 import logging
 import requests
 import urllib3
@@ -77,26 +77,31 @@ class AdminPanel(QMainWindow):
         main_layout.addWidget(title_label)
         
         # Onglets
-        tabs = QTabWidget()
+        self.tabs = QTabWidget()
+        self.rfid_tab_index = -1
+        self.rfid_employees_loaded = False
         
         # Onglet Pointages
         pointages_tab = self.create_pointages_tab()
-        tabs.addTab(pointages_tab, "Pointages")
+        self.tabs.addTab(pointages_tab, "Pointages")
         
         # Onglet Rapports
         reports_tab = self.create_reports_tab()
-        tabs.addTab(reports_tab, "Rapports")
+        self.tabs.addTab(reports_tab, "Rapports")
         
         # Onglet Export
         export_tab = self.create_export_tab()
-        tabs.addTab(export_tab, "Export")
+        self.tabs.addTab(export_tab, "Export")
         
         # Onglet Configuration RFID
         if self.rfid_reader:
             rfid_tab = self.create_rfid_config_tab()
-            tabs.addTab(rfid_tab, "Configuration RFID")
+            self.rfid_tab_index = self.tabs.addTab(rfid_tab, "Configuration RFID")
         
-        main_layout.addWidget(tabs)
+        # Auto-charger les employés quand on arrive sur l'onglet RFID
+        self.tabs.currentChanged.connect(self.on_tab_changed)
+        
+        main_layout.addWidget(self.tabs)
         
         # Bouton fermer
         close_button = QPushButton("Fermer")
@@ -420,6 +425,7 @@ class AdminPanel(QMainWindow):
         """Crée l'onglet de configuration RFID"""
         widget = QWidget()
         layout = QVBoxLayout()
+        layout.setSpacing(8)
         
         # Variables pour stocker l'état
         self.rfid_employees = []
@@ -427,62 +433,133 @@ class AdminPanel(QMainWindow):
         self.rfid_waiting_for_scan = False
         self.rfid_buffer = ''
         self.rfid_timeout = None
+        self.rfid_employee_buttons = []
         
-        # LIGNE 1: Connexion à l'API + Sélection de l'employé (côte à côte pour gagner de la place)
-        top_row = QHBoxLayout()
-        top_row.setSpacing(10)
-        
-        # Section 1: Connexion à l'API
-        api_group = QGroupBox("Connexion au serveur")
-        api_layout = QVBoxLayout()
-        
-        # Afficher les informations de connexion (lecture seule)
-        info_label = QLabel(f"URL: <b>{self.api_url}</b><br>Compte: <b>{self.id_compte}</b>")
-        info_label.setStyleSheet("color: #666; padding: 5px; font-size: 11px;")
-        info_label.setWordWrap(True)
-        api_layout.addWidget(info_label)
-        
-        # Bouton pour charger les employés
-        self.rfid_load_btn = QPushButton("Charger les employés")
-        self.rfid_load_btn.setMinimumHeight(40)
-        self.rfid_load_btn.clicked.connect(self.load_rfid_employees)
-        api_layout.addWidget(self.rfid_load_btn)
-        
-        api_group.setLayout(api_layout)
-        top_row.addWidget(api_group)
-        
-        # Section 2: Sélection de l'employé
+        # ===== SECTION 1: Recherche + Liste des employés =====
         employee_group = QGroupBox("Sélection de l'employé")
-        employee_layout = QVBoxLayout()
+        employee_main_layout = QVBoxLayout()
+        employee_main_layout.setSpacing(8)
         
-        self.rfid_employee_combo = QComboBox()
-        self.rfid_employee_combo.setEnabled(False)
-        self.rfid_employee_combo.setMinimumHeight(40)
-        self.rfid_employee_combo.currentIndexChanged.connect(self.on_rfid_employee_selected)
-        employee_layout.addWidget(self.rfid_employee_combo)
+        # Barre de recherche
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(8)
+        
+        self.rfid_search_input = QLineEdit()
+        self.rfid_search_input.setPlaceholderText("🔍 Rechercher un employé...")
+        self.rfid_search_input.setMinimumHeight(50)
+        self.rfid_search_input.setStyleSheet("""
+            QLineEdit {
+                padding: 10px 15px;
+                font-size: 16px;
+                border: 2px solid #3498db;
+                border-radius: 10px;
+                background-color: white;
+            }
+            QLineEdit:focus {
+                border-color: #2980b9;
+                background-color: #f0f8ff;
+            }
+        """)
+        self.rfid_search_input.textChanged.connect(self.filter_rfid_employees)
+        search_layout.addWidget(self.rfid_search_input)
+        
+        # Bouton rafraîchir
+        self.rfid_load_btn = QPushButton("🔄")
+        self.rfid_load_btn.setMinimumSize(50, 50)
+        self.rfid_load_btn.setMaximumSize(50, 50)
+        self.rfid_load_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 20px;
+                border: 2px solid #3498db;
+                border-radius: 10px;
+                background-color: #3498db;
+                color: white;
+            }
+            QPushButton:pressed {
+                background-color: #2980b9;
+            }
+        """)
+        self.rfid_load_btn.setToolTip("Recharger les employés")
+        self.rfid_load_btn.clicked.connect(self.load_rfid_employees)
+        search_layout.addWidget(self.rfid_load_btn)
+        
+        employee_main_layout.addLayout(search_layout)
+        
+        # Message de chargement / info
+        self.rfid_loading_label = QLabel("Chargement automatique des employés...")
+        self.rfid_loading_label.setAlignment(Qt.AlignCenter)
+        self.rfid_loading_label.setStyleSheet("color: #666; font-style: italic; font-size: 13px; padding: 5px;")
+        employee_main_layout.addWidget(self.rfid_loading_label)
+        
+        # Zone scrollable pour la liste des employés
+        self.rfid_scroll_area = QScrollArea()
+        self.rfid_scroll_area.setWidgetResizable(True)
+        self.rfid_scroll_area.setMinimumHeight(200)
+        self.rfid_scroll_area.setMaximumHeight(300)
+        self.rfid_scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                background-color: #fafafa;
+            }
+            QScrollBar:vertical {
+                width: 20px;
+                background: #f0f0f0;
+                border-radius: 10px;
+            }
+            QScrollBar::handle:vertical {
+                background: #3498db;
+                border-radius: 10px;
+                min-height: 40px;
+            }
+        """)
+        
+        self.rfid_employees_container = QWidget()
+        self.rfid_employees_layout = QVBoxLayout()
+        self.rfid_employees_layout.setSpacing(4)
+        self.rfid_employees_layout.setContentsMargins(4, 4, 4, 4)
+        self.rfid_employees_layout.addStretch()
+        self.rfid_employees_container.setLayout(self.rfid_employees_layout)
+        self.rfid_scroll_area.setWidget(self.rfid_employees_container)
+        
+        employee_main_layout.addWidget(self.rfid_scroll_area)
+        
+        # Info sur l'employé sélectionné + bouton retirer
+        selection_row = QHBoxLayout()
         
         self.rfid_employee_info = QLabel("Aucun employé sélectionné")
-        self.rfid_employee_info.setStyleSheet("color: gray; font-style: italic; font-size: 11px;")
+        self.rfid_employee_info.setStyleSheet("color: gray; font-style: italic; font-size: 13px; padding: 5px;")
         self.rfid_employee_info.setWordWrap(True)
-        employee_layout.addWidget(self.rfid_employee_info)
+        selection_row.addWidget(self.rfid_employee_info, stretch=1)
         
-        # Bouton pour retirer le badge (visible seulement si badge existant)
-        self.rfid_remove_btn = QPushButton("🗑️ Retirer le badge")
-        self.rfid_remove_btn.setStyleSheet("background-color: #e74c3c; color: white; font-weight: bold;")
-        self.rfid_remove_btn.setMinimumHeight(35)
+        self.rfid_remove_btn = QPushButton("🗑️ Retirer badge")
+        self.rfid_remove_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                font-weight: bold;
+                font-size: 13px;
+                padding: 8px 15px;
+                border-radius: 8px;
+                min-height: 40px;
+            }
+            QPushButton:pressed {
+                background-color: #c0392b;
+            }
+        """)
         self.rfid_remove_btn.clicked.connect(self.remove_rfid_badge)
-        self.rfid_remove_btn.setVisible(False)  # Caché par défaut
-        employee_layout.addWidget(self.rfid_remove_btn)
+        self.rfid_remove_btn.setVisible(False)
+        selection_row.addWidget(self.rfid_remove_btn)
         
-        employee_group.setLayout(employee_layout)
-        top_row.addWidget(employee_group)
+        employee_main_layout.addLayout(selection_row)
         
-        layout.addLayout(top_row)
+        employee_group.setLayout(employee_main_layout)
+        layout.addWidget(employee_group)
         
-        # Section 3: Scan du badge (2 colonnes : Scanner | Enregistrer)
+        # ===== SECTION 2: Scan du badge =====
         scan_group = QGroupBox("Configuration du badge RFID")
         scan_layout = QVBoxLayout()
-        scan_layout.setSpacing(15)
+        scan_layout.setSpacing(10)
         
         # Status du lecteur
         self.rfid_reader_status = QLabel("Lecteur RFID: Vérification...")
@@ -560,6 +637,11 @@ class AdminPanel(QMainWindow):
         widget.setLayout(layout)
         return widget
     
+    def on_tab_changed(self, index):
+        """Appelé quand on change d'onglet - charge auto les employés sur l'onglet RFID"""
+        if index == self.rfid_tab_index and not self.rfid_employees_loaded:
+            QTimer.singleShot(300, self.load_rfid_employees)
+    
     def check_rfid_reader_status(self):
         """Vérifie l'état du lecteur RFID"""
         if self.rfid_reader and self.rfid_reader.is_connected():
@@ -576,6 +658,8 @@ class AdminPanel(QMainWindow):
         
         self.rfid_log(f"📡 Chargement des employés du compte {id_compte}...")
         self.rfid_load_btn.setEnabled(False)
+        self.rfid_loading_label.setText("⏳ Chargement en cours...")
+        self.rfid_loading_label.setStyleSheet("color: #e67e22; font-style: italic; font-size: 13px; padding: 5px;")
         
         try:
             url = f"{api_url}/api_list_employees.php?id_compte={id_compte}"
@@ -586,54 +670,152 @@ class AdminPanel(QMainWindow):
             
             if data.get('success'):
                 self.rfid_employees = data.get('employees', [])
-                self.rfid_employee_combo.clear()
-                self.rfid_employee_combo.addItem("-- Sélectionnez un employé --", None)
+                self.rfid_employees_loaded = True
+                self.rfid_search_input.clear()
+                self.populate_employee_list(self.rfid_employees)
                 
-                for emp in self.rfid_employees:
-                    rfid_status = "✓" if emp.get('has_rfid') else "✗"
-                    label = f"{emp['nom']} {emp['prenom']} [{rfid_status}]"
-                    self.rfid_employee_combo.addItem(label, emp)
-                
-                self.rfid_employee_combo.setEnabled(True)
-                self.rfid_log(f"✓ {len(self.rfid_employees)} employés chargés")
+                count = len(self.rfid_employees)
+                self.rfid_loading_label.setText(f"✓ {count} employés chargés — Touchez un nom pour le sélectionner")
+                self.rfid_loading_label.setStyleSheet("color: #27ae60; font-size: 13px; padding: 5px;")
+                self.rfid_log(f"✓ {count} employés chargés")
             else:
                 error = data.get('error', 'Erreur inconnue')
+                self.rfid_loading_label.setText(f"❌ Erreur: {error}")
+                self.rfid_loading_label.setStyleSheet("color: #e74c3c; font-size: 13px; padding: 5px;")
                 self.rfid_log(f"❌ Erreur API: {error}")
-                QMessageBox.warning(self, "Erreur", f"Erreur lors du chargement:\n{error}")
         except Exception as e:
+            self.rfid_loading_label.setText(f"❌ Connexion impossible")
+            self.rfid_loading_label.setStyleSheet("color: #e74c3c; font-size: 13px; padding: 5px;")
             self.rfid_log(f"❌ Erreur: {str(e)}")
-            QMessageBox.critical(self, "Erreur", f"Impossible de se connecter à l'API:\n{str(e)}")
         finally:
             self.rfid_load_btn.setEnabled(True)
     
-    def on_rfid_employee_selected(self, index):
-        """Appelé quand un employé est sélectionné"""
-        employee = self.rfid_employee_combo.currentData()
+    def populate_employee_list(self, employees):
+        """Crée les boutons pour chaque employé dans la liste scrollable"""
+        # Supprimer tous les anciens boutons
+        self.rfid_employee_buttons.clear()
+        while self.rfid_employees_layout.count() > 0:
+            item = self.rfid_employees_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
         
-        if employee:
-            self.rfid_selected_employee = employee
-            info = f"Sélectionné: {employee['nom']} {employee['prenom']}"
+        # Créer un bouton par employé
+        for emp in employees:
+            has_rfid = emp.get('has_rfid', False)
+            rfid_icon = "🟢" if has_rfid else "⚪"
+            label = f"{rfid_icon}  {emp['nom']} {emp['prenom']}"
             
-            # Afficher le badge actuel s'il existe
-            if employee.get('has_rfid') and employee.get('rfid'):
-                info += f"\n✓ Badge RFID actuel: {employee.get('rfid')}"
-                info += "\n(Vous pouvez le remplacer ou le retirer)"
-                # Afficher le bouton pour retirer le badge
-                self.rfid_remove_btn.setVisible(True)
+            btn = QPushButton(label)
+            btn.setMinimumHeight(55)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setProperty("employee_data", emp)
+            
+            # Style par défaut
+            if has_rfid:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        text-align: left;
+                        padding: 10px 15px;
+                        font-size: 15px;
+                        font-weight: normal;
+                        background-color: #e8f5e9;
+                        border: 2px solid #c8e6c9;
+                        border-radius: 10px;
+                        color: #2e7d32;
+                    }
+                    QPushButton:pressed {
+                        background-color: #c8e6c9;
+                        border-color: #27ae60;
+                    }
+                """)
             else:
-                info += "\n✗ Aucun badge RFID configuré"
-                # Cacher le bouton pour retirer le badge
-                self.rfid_remove_btn.setVisible(False)
+                btn.setStyleSheet("""
+                    QPushButton {
+                        text-align: left;
+                        padding: 10px 15px;
+                        font-size: 15px;
+                        font-weight: normal;
+                        background-color: white;
+                        border: 2px solid #e0e0e0;
+                        border-radius: 10px;
+                        color: #333;
+                    }
+                    QPushButton:pressed {
+                        background-color: #e3f2fd;
+                        border-color: #2196f3;
+                    }
+                """)
             
-            self.rfid_employee_info.setText(info)
-            self.rfid_employee_info.setStyleSheet("color: black;")
-            self.rfid_scan_btn.setEnabled(self.rfid_reader and self.rfid_reader.is_connected())
+            btn.clicked.connect(lambda checked, e=emp, b=btn: self.on_rfid_employee_selected(e, b))
+            self.rfid_employees_layout.addWidget(btn)
+            self.rfid_employee_buttons.append(btn)
+        
+        # Ajouter un stretch à la fin
+        self.rfid_employees_layout.addStretch()
+    
+    def filter_rfid_employees(self, text):
+        """Filtre les employés selon la recherche"""
+        search = text.strip().lower()
+        
+        for btn in self.rfid_employee_buttons:
+            emp = btn.property("employee_data")
+            if not search:
+                btn.setVisible(True)
+            else:
+                full_name = f"{emp.get('nom', '')} {emp.get('prenom', '')}".lower()
+                btn.setVisible(search in full_name)
+    
+    def on_rfid_employee_selected(self, employee, button=None):
+        """Appelé quand un employé est sélectionné via un bouton de la liste"""
+        self.rfid_selected_employee = employee
+        
+        # Réinitialiser le style de tous les boutons
+        for btn in self.rfid_employee_buttons:
+            emp = btn.property("employee_data")
+            has_rfid = emp.get('has_rfid', False)
+            if has_rfid:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        text-align: left; padding: 10px 15px; font-size: 15px;
+                        background-color: #e8f5e9; border: 2px solid #c8e6c9;
+                        border-radius: 10px; color: #2e7d32;
+                    }
+                    QPushButton:pressed { background-color: #c8e6c9; border-color: #27ae60; }
+                """)
+            else:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        text-align: left; padding: 10px 15px; font-size: 15px;
+                        background-color: white; border: 2px solid #e0e0e0;
+                        border-radius: 10px; color: #333;
+                    }
+                    QPushButton:pressed { background-color: #e3f2fd; border-color: #2196f3; }
+                """)
+        
+        # Mettre en surbrillance le bouton sélectionné
+        if button:
+            button.setStyleSheet("""
+                QPushButton {
+                    text-align: left; padding: 10px 15px; font-size: 15px; font-weight: bold;
+                    background-color: #2196f3; border: 3px solid #1565c0;
+                    border-radius: 10px; color: white;
+                }
+            """)
+        
+        # Mettre à jour les infos
+        info = f"<b>{employee['nom']} {employee['prenom']}</b>"
+        
+        if employee.get('has_rfid') and employee.get('rfid'):
+            info += f"  •  Badge: {employee.get('rfid')}"
+            self.rfid_remove_btn.setVisible(True)
         else:
-            self.rfid_selected_employee = None
-            self.rfid_employee_info.setText("Aucun employé sélectionné")
-            self.rfid_employee_info.setStyleSheet("color: gray; font-style: italic;")
-            self.rfid_scan_btn.setEnabled(False)
+            info += "  •  Aucun badge"
             self.rfid_remove_btn.setVisible(False)
+        
+        self.rfid_employee_info.setText(info)
+        self.rfid_employee_info.setStyleSheet("color: #1565c0; font-size: 14px; padding: 5px;")
+        self.rfid_scan_btn.setEnabled(self.rfid_reader and self.rfid_reader.is_connected())
     
     def start_rfid_scanning(self):
         """Démarre l'attente du scan"""
