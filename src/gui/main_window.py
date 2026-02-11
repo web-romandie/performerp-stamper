@@ -562,7 +562,7 @@ class MainWindow(QMainWindow):
         logger.info(f"Fichier rechargé: {len(self.employees)} employés")
     
     def _get_ephemeride_du_jour(self):
-        """Retourne l'éphéméride du jour (saint + journée mondiale) depuis ephemeride_2ans.csv."""
+        """Retourne le 'Le saviez-vous ?' du jour depuis ephemeride_2ans.csv."""
         try:
             csv_path = Path(__file__).resolve().parent.parent.parent / "ephemeride_2ans.csv"
             if not csv_path.exists():
@@ -574,24 +574,10 @@ class MainWindow(QMainWindow):
                 for row in reader:
                     if row.get("date") != today:
                         continue
-                    # Saint : 2e colonne (clé "saint")
-                    saint = (row.get("saint") or "").strip()
-                    # Journée mondiale : 3e colonne (plusieurs clés possibles selon encodage/export)
-                    journee = (row.get("journee_mondiale") or row.get("journée_mondiale") or "").strip()
-                    if not journee and len(row) >= 3:
-                        vals = list(row.values())
-                        if len(vals) >= 3:
-                            journee = (vals[2] or "").strip()
-                    # Toujours afficher saint et/ou journée mondiale quand présents
-            parts = []
-            if saint:
-                parts.append(saint)
-            if journee:
-                parts.append(journee)
-            if parts:
-                # Saint et journée mondiale sur des lignes séparées
-                return "\n".join(parts)
-            return ""
+                    # Récupérer le fait du jour
+                    fact = (row.get("saviez_vous") or "").strip()
+                    if fact:
+                        return fact
             return ""
         except Exception as e:
             logger.debug(f"Éphéméride non chargée: {e}")
@@ -689,11 +675,11 @@ class MainWindow(QMainWindow):
             if pointage_type == "ENTREE":
                 bg_color = "#27ae60"  # Vert pour ENTRÉE
             else:
-                bg_color = "#3498db"  # Bleu pour SORTIE
+                bg_color = "#27ae60"  # Vert pour SORTIE
             
             # Afficher le message avec la couleur appropriée
             self.instruction_label.setVisible(True)
-            self.instruction_label.setText(f"✓ {pointage_type} enregistrée\n{employee_name}")
+            self.instruction_label.setText(f"✓ pointage enregistré\n{employee_name}")
             self.instruction_label.setStyleSheet(f"""
                 color: white;
                 background-color: {bg_color};
@@ -702,7 +688,7 @@ class MainWindow(QMainWindow):
                 font-size: 32px;
                 font-weight: bold;
             """)
-            logger.info(f"Pointage {pointage_type} enregistré avec succès")
+            logger.info(f"Pointage enregistré avec succès")
             
             # Restaurer le message par défaut après 3 secondes
             QTimer.singleShot(3000, self.reset_instruction_message)
