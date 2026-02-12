@@ -141,7 +141,7 @@ class RFIDReaderPCSC:
         """Boucle de lecture continue (thread)"""
         logger.info("Démarrage de la lecture PC/SC continue")
         
-        debounce_time = 2.0  # Éviter les lectures multiples en 2 secondes
+        debounce_time = 1.0  # Temps minimum entre deux lectures du même badge
         
         while self.running:
             try:
@@ -159,7 +159,7 @@ class RFIDReaderPCSC:
                     else:
                         logger.warning("Callback non défini !")
                 
-                time.sleep(0.3)  # Vérifier toutes les 300ms
+                time.sleep(0.15)  # Vérifier toutes les 150ms (réactivité max)
                 
             except Exception as e:
                 logger.error(f"Erreur dans la boucle de lecture: {e}")

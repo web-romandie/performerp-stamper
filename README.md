@@ -298,15 +298,12 @@ timbrage/
 
 ## 📚 Documentation
 
-| Document                                                      | Description                                |
-| ------------------------------------------------------------- | ------------------------------------------ |
-| [QUICK_START.md](QUICK_START.md)                              | Guide de démarrage rapide                  |
-| [MANUEL_UTILISATION.md](MANUEL_UTILISATION.md)                | Manuel utilisateur complet                 |
-| [INSTALLATION_WINDOWS.md](INSTALLATION_WINDOWS.md)            | Guide d'installation Windows détaillé      |
-| [INSTALLATION_RASPBERRY.md](INSTALLATION_RASPBERRY.md) 🥧 NEW | Guide complet pour Raspberry Pi            |
-| [RASPBERRY_QUICKSTART.md](RASPBERRY_QUICKSTART.md) 🥧 NEW    | Démarrage rapide Raspberry Pi (4 étapes)   |
-| [DEPANNAGE_INSTALLATION.md](DEPANNAGE_INSTALLATION.md)        | Résolution problèmes d'installation        |
-| [CHANGELOG.md](CHANGELOG.md)                                  | Historique des versions                    |
+| Document | Description |
+|----------|-------------|
+| [INSTALLATION_RASPBERRY.md](INSTALLATION_RASPBERRY.md) | Guide complet pour Raspberry Pi |
+| [INSTALLATION_WINDOWS.md](INSTALLATION_WINDOWS.md) | Guide d'installation Windows |
+| [CONNEXION_RASPBERRY.md](CONNEXION_RASPBERRY.md) | Connexion SSH au Raspberry Pi |
+| [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
 
 ---
 
@@ -353,6 +350,128 @@ type logs\pointage.log  # Windows
 
 ---
 
+## 🔄 Configurer une nouvelle entreprise
+
+Pour réutiliser un Raspberry Pi (ou une copie de carte SD) pour une autre entreprise :
+
+### 1. Arrêter la timbreuse
+
+```bash
+sudo systemctl stop timbrage
+```
+
+### 2. Supprimer les pointages existants
+
+```bash
+rm ~/timbrage/data/pointage.db
+```
+
+La base sera recréée automatiquement (vide) au prochain démarrage.
+
+### 3. Vider les employés
+
+```bash
+echo '[]' > ~/timbrage/config/employees.json
+```
+
+### 4. Modifier la configuration API
+
+```bash
+nano ~/timbrage/config/api_config.py
+```
+
+Changez les valeurs pour la nouvelle entreprise :
+
+```python
+API_URL = "https://votre-serveur.ch/presence"
+ACCOUNT_ID = 123      # ID du nouveau compte
+API_KEY = "votre-clé-api"
+```
+
+### 5. Redémarrer la timbreuse
+
+```bash
+sudo systemctl start timbrage
+```
+
+### 6. Recharger les employés
+
+Ouvrez l'admin → onglet **Configuration RFID** → bouton **"Regénérer employees.json"**
+
+### Résumé rapide
+
+| Étape | Commande |
+|-------|----------|
+| Arrêter | `sudo systemctl stop timbrage` |
+| Vider les pointages | `rm ~/timbrage/data/pointage.db` |
+| Vider les employés | `echo '[]' > ~/timbrage/config/employees.json` |
+| Nouvelle config API | `nano ~/timbrage/config/api_config.py` |
+| Redémarrer | `sudo systemctl start timbrage` |
+
+---
+
+## 💾 Sauvegarder / Cloner la carte SD
+
+### Créer une copie (sur Mac)
+
+```bash
+# Identifier la carte SD
+diskutil list
+
+# Démonter la carte (remplacez disk6 par votre numéro)
+diskutil unmountDisk /dev/disk6
+
+# Copier la carte entière
+sudo dd if=/dev/rdisk6 of=/Users/VOTRE_NOM/Desktop/raspberry_backup.img bs=4m status=progress
+
+# Éjecter
+diskutil eject /dev/disk6
+```
+
+### Restaurer sur une nouvelle carte
+
+```bash
+# Identifier la nouvelle carte
+diskutil list
+
+# Démonter
+diskutil unmountDisk /dev/disk6
+
+# Écrire l'image
+sudo dd if=/Users/VOTRE_NOM/Desktop/raspberry_backup.img of=/dev/rdisk6 bs=4m status=progress
+
+# Éjecter
+diskutil eject /dev/disk6
+```
+
+### Compresser l'image (optionnel)
+
+```bash
+# Compresser (63 Go → ~5-15 Go)
+gzip /Users/VOTRE_NOM/Desktop/raspberry_backup.img
+
+# Restaurer depuis une image compressée
+diskutil unmountDisk /dev/disk6
+gunzip -c /Users/VOTRE_NOM/Desktop/raspberry_backup.img.gz | sudo dd of=/dev/rdisk6 bs=4m status=progress
+```
+
+> **Attention** : Vérifiez bien le numéro du disque (`diskutil list`) avant d'écrire. `dd` écrase tout sans confirmation !
+
+---
+
+## 🔧 Outils utilitaires
+
+| Script | Description |
+|--------|-------------|
+| `mark_all_synced.py` | Marque tous les pointages comme déjà synchronisés |
+
+```bash
+# Utile après une migration pour éviter de renvoyer les anciens pointages
+python3 mark_all_synced.py
+```
+
+---
+
 ## 🔐 Sécurité
 
 - ⚠️ **Ne partagez jamais** le fichier `.env` (contient les mots de passe FTP)
@@ -360,6 +479,7 @@ type logs\pointage.log  # Windows
 - ⚠️ **Conservez une copie** de `config/employees.json`
 - ✅ Le fichier `.env` est ignoré par Git
 - ✅ Les mots de passe ne sont jamais loggés
+- ✅ Protection anti-doublon : un même employé ne peut pas pointer 2 fois en moins de 5 secondes
 
 ---
 
