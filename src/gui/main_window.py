@@ -660,7 +660,7 @@ class MainWindow(QMainWindow):
         
         # ENREGISTRER LE POINTAGE IMMÉDIATEMENT (une seule fois à la présentation)
         id_emp = int(employee['employee_id'].replace('EMP', '').lstrip('0'))
-        employee_name = employee.get('name', '').split()[0]  # Prénom uniquement
+        employee_name = employee.get('name', '')  # Prénom et nom
         
         logger.info(f"Badge présenté - enregistrement IMMÉDIAT du pointage pour {employee_name}")
         
