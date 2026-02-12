@@ -41,6 +41,7 @@ class RFIDReaderPCSC:
         self.callback: Optional[Callable] = None
         self.last_uid = None
         self.last_read_time = 0
+        self.absence_counter = 0  # Compteur de cycles sans carte (anti micro-coupures)
         
     def list_available_readers(self):
         """Liste les lecteurs PC/SC disponibles"""
@@ -141,23 +142,33 @@ class RFIDReaderPCSC:
         """Boucle de lecture continue (thread)"""
         logger.info("Démarrage de la lecture PC/SC continue")
         
-        debounce_time = 1.0  # Temps minimum entre deux lectures du même badge
-        
         while self.running:
             try:
                 uid = self.read_card_uid()
                 current_time = time.time()
                 
-                # Vérifier si c'est une nouvelle lecture (debouncing)
-                if uid and (uid != self.last_uid or current_time - self.last_read_time > debounce_time):
-                    self.last_uid = uid
+                if uid:
+                    # Carte présente → toujours mettre à jour le temps de dernière lecture
                     self.last_read_time = current_time
-                    logger.info(f"→ Appel du callback avec UID: {uid}")
+                    self.absence_counter = 0
                     
-                    if self.callback:
-                        self.callback(uid)
-                    else:
-                        logger.warning("Callback non défini !")
+                    # Appeler le callback uniquement pour une NOUVELLE présentation
+                    # (nouveau badge OU même badge re-présenté après retrait)
+                    if uid != self.last_uid:
+                        self.last_uid = uid
+                        logger.info(f"→ Nouvelle carte détectée: {uid}")
+                        
+                        if self.callback:
+                            self.callback(uid)
+                        else:
+                            logger.warning("Callback non défini !")
+                else:
+                    # Pas de carte → compter les cycles d'absence
+                    # 3 cycles (~450ms) pour filtrer les micro-interruptions du lecteur
+                    self.absence_counter += 1
+                    if self.absence_counter >= 3 and self.last_uid is not None:
+                        logger.debug(f"Carte retirée après {self.absence_counter} cycles d'absence")
+                        self.last_uid = None
                 
                 time.sleep(0.15)  # Vérifier toutes les 150ms (réactivité max)
                 

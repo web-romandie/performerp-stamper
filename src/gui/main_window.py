@@ -627,10 +627,6 @@ class MainWindow(QMainWindow):
         logger.info(f"Badge détecté: {rfid_code}")
         
         # Vérifier si c'est une nouvelle carte ou la même
-        if self.current_rfid == rfid_code and self.is_card_present:
-            # Même carte, ne rien faire
-            return
-        
         # Éviter les détections multiples pendant le traitement
         if self.is_processing:
             logger.debug("Détection ignorée: traitement en cours")
