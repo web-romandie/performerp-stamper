@@ -692,9 +692,20 @@ class MainWindow(QMainWindow):
             
             # Restaurer le message par défaut après 3 secondes
             QTimer.singleShot(3000, self.reset_instruction_message)
-        elif "attendre" in error_msg.lower():
-            # Erreur de délai (< 5 secondes) → Ne rien afficher, ignorer silencieusement
+        elif error_msg and "attendre" in error_msg.lower():
+            # Erreur de délai → Afficher un message orange
+            self.instruction_label.setVisible(True)
+            self.instruction_label.setText(f"⏳ Déjà enregistré\n{employee_name}")
+            self.instruction_label.setStyleSheet("""
+                color: white;
+                background-color: #e67e22;
+                padding: 40px;
+                border-radius: 15px;
+                font-size: 28px;
+                font-weight: bold;
+            """)
             logger.info(f"Pointage ignoré: {error_msg}")
+            QTimer.singleShot(2000, self.reset_instruction_message)
         else:
             # Autres erreurs (badge inconnu, erreur système, etc.) → Afficher
             self.instruction_label.setVisible(True)
