@@ -333,8 +333,8 @@ class MainWindow(QMainWindow):
         self.admin_btn.clicked.connect(self.request_admin_pin)
         self.admin_btn.setFixedHeight(50)
         self.admin_btn.setFixedWidth(200)
-        # Visible si aucun employé, sinon masqué
-        self.admin_btn.setVisible(self.show_admin_on_start)
+        # Bouton toujours visible
+        self.admin_btn.setVisible(True)
         layout.addWidget(self.admin_btn)
         return header
         
@@ -646,13 +646,6 @@ class MainWindow(QMainWindow):
             self.is_processing = False
             return
         
-        # Rang 1 = administrateur : ouvrir directement l'admin sans timbrage ni code
-        if employee.get('rang') == 1:
-            logger.info("Badge rang 1 — ouverture directe de l'administration")
-            self.is_processing = False
-            self.open_admin()
-            return
-        
         # Marquer comme présent
         self.current_rfid = rfid_code
         self.current_employee = employee
@@ -950,9 +943,6 @@ class MainWindow(QMainWindow):
         self.pointages_label.setVisible(False)
         self.pointages_label.setText("")
         
-        # Bouton Admin visible seulement s'il n'y a aucun employé rang 1
-        self.admin_btn.setVisible(not self._has_rank1_employee())
-        
         # Réinitialiser les cartes d'information si elles existent
         if hasattr(self, 'planif_widget') and hasattr(self.planif_widget, 'value_label'):
             self.planif_widget.value_label.setText("--:--:--")
@@ -985,9 +975,6 @@ class MainWindow(QMainWindow):
         
         # Masquer les pointages
         self.pointages_label.setVisible(False)
-        
-        # Bouton Admin visible seulement s'il n'y a aucun employé rang 1
-        self.admin_btn.setVisible(not self._has_rank1_employee())
         
         logger.info("Interface réinitialisée après retrait du badge")
         
@@ -1190,7 +1177,6 @@ class MainWindow(QMainWindow):
         try:
             # Recharger les employés (un rang 1 peut avoir été ajouté/supprimé)
             self.reload_employees()
-            self.admin_btn.setVisible(not self._has_rank1_employee())
             if not self.rfid_reader.is_reading():
                 self.start_rfid_reading()
                 logger.info("Lecture RFID principale restaurée après administration")
