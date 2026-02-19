@@ -1177,11 +1177,26 @@ class MainWindow(QMainWindow):
         try:
             # Recharger les employés (un rang 1 peut avoir été ajouté/supprimé)
             self.reload_employees()
+            
+            # Arrêter proprement si en cours avant de redémarrer
+            if self.rfid_reader.is_reading():
+                self.rfid_reader.stop_reading()
+                # Attendre un peu que le thread se termine proprement
+                QTimer.singleShot(500, self._delayed_restart_rfid)
+            else:
+                self._delayed_restart_rfid()
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de la restauration de la lecture RFID: {e}")
+    
+    def _delayed_restart_rfid(self):
+        """Redémarre la lecture RFID après un délai (évite les problèmes de threading)"""
+        try:
             if not self.rfid_reader.is_reading():
                 self.start_rfid_reading()
                 logger.info("Lecture RFID principale restaurée après administration")
         except Exception as e:
-            logger.error(f"Erreur lors de la restauration de la lecture RFID: {e}")
+            logger.error(f"Erreur lors du redémarrage RFID: {e}")
     
     def closeEvent(self, event):
         """Gestion de la fermeture de la fenêtre"""
