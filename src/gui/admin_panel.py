@@ -81,6 +81,11 @@ class AdminPanel(QMainWindow):
         self.rfid_tab_index = -1
         self.rfid_employees_loaded = False
         
+        # Onglet Configuration RFID (en premier)
+        if self.rfid_reader:
+            rfid_tab = self.create_rfid_config_tab()
+            self.rfid_tab_index = self.tabs.addTab(rfid_tab, "Configuration RFID")
+        
         # Onglet Pointages
         pointages_tab = self.create_pointages_tab()
         self.tabs.addTab(pointages_tab, "Pointages")
@@ -92,11 +97,6 @@ class AdminPanel(QMainWindow):
         # Onglet Export
         export_tab = self.create_export_tab()
         self.tabs.addTab(export_tab, "Export")
-        
-        # Onglet Configuration RFID
-        if self.rfid_reader:
-            rfid_tab = self.create_rfid_config_tab()
-            self.rfid_tab_index = self.tabs.addTab(rfid_tab, "Configuration RFID")
         
         # Auto-charger les employés quand on arrive sur l'onglet RFID
         self.tabs.currentChanged.connect(self.on_tab_changed)
