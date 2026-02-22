@@ -1053,7 +1053,7 @@ class MainWindow(QMainWindow):
         
         # Grille de boutons numériques (3x4)
         grid = QGridLayout()
-        grid.setSpacing(20)  # Espacement entre les boutons
+        grid.setSpacing(30)  # Espacement entre les boutons
         
         # Boutons 1-9
         for i in range(1, 10):
