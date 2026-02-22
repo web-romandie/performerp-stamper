@@ -1053,12 +1053,13 @@ class MainWindow(QMainWindow):
         
         # Grille de boutons numériques (3x4)
         grid = QGridLayout()
-        grid.setSpacing(30)  # Espacement entre les boutons
+        grid.setSpacing(25)  # Espacement entre les boutons
+        grid.setContentsMargins(10, 10, 10, 10)  # Marges autour de la grille
         
         # Boutons 1-9
         for i in range(1, 10):
             btn = QPushButton(str(i))
-            btn.setFixedSize(100, 80)
+            btn.setFixedSize(90, 70)  # Boutons légèrement plus petits pour voir l'espacement
             btn.setFont(QFont("Arial", 24, QFont.Bold))
             btn.setStyleSheet("""
                 QPushButton {
@@ -1079,7 +1080,7 @@ class MainWindow(QMainWindow):
         
         # Bouton 0, Effacer, Valider
         btn_clear = QPushButton("⌫")
-        btn_clear.setFixedSize(100, 80)
+        btn_clear.setFixedSize(90, 70)
         btn_clear.setFont(QFont("Arial", 28, QFont.Bold))
         btn_clear.setStyleSheet("""
             QPushButton {
@@ -1096,7 +1097,7 @@ class MainWindow(QMainWindow):
         grid.addWidget(btn_clear, 3, 0)
         
         btn_zero = QPushButton("0")
-        btn_zero.setFixedSize(100, 80)
+        btn_zero.setFixedSize(90, 70)
         btn_zero.setFont(QFont("Arial", 24, QFont.Bold))
         btn_zero.setStyleSheet("""
             QPushButton {
@@ -1114,7 +1115,7 @@ class MainWindow(QMainWindow):
         grid.addWidget(btn_zero, 3, 1)
         
         btn_validate = QPushButton("✓")
-        btn_validate.setFixedSize(100, 80)
+        btn_validate.setFixedSize(90, 70)
         btn_validate.setFont(QFont("Arial", 28, QFont.Bold))
         btn_validate.setStyleSheet("""
             QPushButton {
