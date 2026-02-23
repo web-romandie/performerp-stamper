@@ -229,6 +229,12 @@ class MainWindow(QMainWindow):
         # Première synchronisation après 30 secondes
         QTimer.singleShot(30000, self.sync_worker.sync_pointages)
         
+        # Watchdog : vérifie toutes les 30s que la lecture RFID est active
+        self.rfid_watchdog_timer = QTimer()
+        self.rfid_watchdog_timer.timeout.connect(self._rfid_watchdog_check)
+        self.rfid_watchdog_timer.start(30000)
+        logger.info("Watchdog RFID activé (vérification toutes les 30s)")
+        
     def init_ui(self):
         """Initialise l'interface utilisateur moderne"""
         self.setWindowTitle("Pointage - Application Moderne")
@@ -1199,6 +1205,20 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Erreur lors du redémarrage RFID: {e}")
     
+    def _rfid_watchdog_check(self):
+        """Watchdog : relance la lecture RFID si elle est inactive sans raison"""
+        admin_open = hasattr(self, 'admin_window') and self.admin_window is not None and self.admin_window.isVisible()
+        if admin_open:
+            return
+        
+        if not self.rfid_reader.is_reading():
+            logger.warning("Watchdog RFID: lecture inactive détectée — relance automatique")
+            try:
+                self.start_rfid_reading()
+                logger.info("Watchdog RFID: lecture relancée avec succès")
+            except Exception as e:
+                logger.error(f"Watchdog RFID: échec de relance — {e}")
+    
     def closeEvent(self, event):
         """Gestion de la fermeture de la fenêtre"""
         if self.rfid_reader.is_reading():
@@ -1209,6 +1229,9 @@ class MainWindow(QMainWindow):
         
         if self.employees_sync_timer:
             self.employees_sync_timer.stop()
+        
+        if self.rfid_watchdog_timer:
+            self.rfid_watchdog_timer.stop()
             
         event.accept()
 
