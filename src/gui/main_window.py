@@ -742,10 +742,13 @@ class MainWindow(QMainWindow):
                 last_timestamp = datetime.fromisoformat(last_pointage['timestamp'])
                 time_diff = (datetime.now() - last_timestamp).total_seconds()
                 
-                if time_diff < 5.0:
+                if time_diff < 1800.0:
                     # Trop rapide! Refuser le pointage
-                    logger.warning(f"Pointage refusé: délai trop court ({time_diff:.1f}s < 5s) pour employé {id_emp}")
-                    return False, None, f"Veuillez attendre {int(5 - time_diff)}s avant de pointer à nouveau"
+                    remaining = int(1800 - time_diff)
+                    minutes = remaining // 60
+                    seconds = remaining % 60
+                    logger.warning(f"Pointage refusé: délai trop court ({time_diff:.1f}s < 1800s) pour employé {id_emp}")
+                    return False, None, f"Veuillez attendre {minutes}min {seconds}s avant de pointer à nouveau"
             
             # Déterminer le type (ENTREE/SORTIE) en fonction du dernier pointage
             if last_pointage and last_pointage.get('type') == 'ENTREE':
